@@ -1,0 +1,699 @@
+\documentclass[fleqn,10pt,a4paper,titlepage]{article}
+
+%
+% ---------- CODES --------------------------
+%
+\makeatletter
+\gdef\th@magyar{\normalfont\slshape
+  \def\@begintheorem##1##2{%
+  \item[\hskip\labelsep \theorem@headerfont ##2.\ ##1.]}%
+  \def\@opargbegintheorem##1##2##3{%
+  \item[\hskip\labelsep \theorem@headerfont ##2. ##1.\ (##3)]}}
+\makeatother
+
+%
+% - ---- -- PACKAGES--------------------------
+%
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{t1enc}
+\usepackage[utf8]{inputenc}
+\usepackage[magyar]{babel}
+%\usepackage{amsthm}
+\usepackage{theorem}
+\usepackage{fancyhdr}
+\usepackage{paralist}
+%\usepackage{color}
+
+
+
+
+\newcommand{\fontos}[1]{\texttt{#1}}
+\newcommand{\ut}[1]{\vspace{5mm}\fbox{\parbox{130mm}{\texttt{\noindent{#1}}}}\vspace{5mm}}
+\newcommand*{\filename}[1]{\texttt{#1}}
+\newcommand*{\behuzas}[1][1]{\hspace*{#1em}}
+\newcommand*{\beh}[1][1]{\hspace*{#1em}}
+\newcommand*{\tgt}{\textgreater}
+\newcommand{\textt}{\texttt}
+
+%\setlength{\parindent}{0pt}
+%\setlength{\parskip}{\baselineskip}
+\addtolength{\voffset}{-1cm}
+\addtolength{\textheight}{2cm}
+%\addtolength{\marginparwidth}{-1cm}
+\addtolength{\hoffset}{-1cm}
+\addtolength{\textwidth}{2cm}
+\setlength{\headheight}{23pt}
+%
+\pagestyle{fancy}
+
+\renewcommand{\sectionmark}[1]{\markboth{\Roman{section}. fejezet\\#1}{}}
+
+\newcommand{\mktoc}{
+  \pagenumbering{roman}
+  \setcounter{page}{1}
+  \lhead{\textbf{\thepage}}
+  \cfoot{}
+  \tableofcontents
+  \newpage
+  \lhead{\textbf{\thepage}}
+  \pagenumbering{arabic}
+  \setcounter{page}{1}
+}
+
+\title{Postfix, LDAP, Kerberos, SSH...}
+\author{Tóth László Attila (panther@elte.hu)}
+\date{2006. július 26.}
+\begin{document}
+  \maketitle
+  \mktoc
+  \newpage
+  \section{Miről szól ez a dokumentum?}
+  Egy-egy nagyobb rendszerben, sőt, sokszor kisebbekben is szükséges a szolgáltatások összehangolása, azok kényelmes,
+  biztonságos használata. A felhasználók, jelszavak központi tárolása is előnyösebb, hiszen így több gépen is azonso
+  környezetben lehet dolgozni.
+
+  A következő oldalakon az alábbiak beállítása és/vagy együttműködése található meg:
+  \begin{itemize}
+  \item OpenLDAP
+  \item MIT-Krb5 (Kerberos)
+  \item Tanusítvány-kiszolgáló (Certificate Authority)
+  \item PAM
+  \item Cyrus saslauthd
+  \item OpenSSH
+  \item Postfix
+  \item Amavisd-new
+  \item ClamAV
+  \item SpamAssassin
+  \item SSL/TLS titkosítás
+  \end{itemize}
+  
+  Minden linux disztribúciónak megvan a maga csomagkezelő rendszere, ez Debian esetén az apt-get, Gentoo alatt az
+  emerge, SuSE/openSuSE alatt a YaST (yast sw\_single). A beállítások helye a Gentoos változatnak mefelelően lesz
+  megadva, ami elméletben mindenhol ugyanaz.
+
+  A fenti programok beállításait lépésről lépésre tárgyaljuk, ami végén egy egységesen működő rendszert kapunk.
+  
+  \newpage
+  \section{Az OpenLDAP}
+  Az openldap az LDAP protokollt ({\em Lightweight Directory Access Protocol}) valósítja meg. Ez egy könyvtárszolgáltatás
+  (directory service) elérésére szolgál, aminek jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
+  optimalizált adatbázist használ az adatok tárolására. Az adatbázis lényegében \emph{bármilyen adatot} tartalmhazhat
+  \emph{bármiről}, az egyetlen megkötés, hogy faszerkezetű hierarchiába kell szervezni.
+
+  Az OpenLDAP általában TCP/IP kapcsolatot használ az adatok elérésére, bár a helyi gépen (ahol az ldap kiszolgáló
+  található), unix socketet is használhat.
+  
+  \subsection{Mi LDAP (röviden)?}
+  A benne tárolt adatokat egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja. A név több részből áll, a
+  különböző részek alapján faszerkezetű hierarchiába szervezhetőek a bejegyzések. Minden bejegyzéshez tartozik egy vagy
+  több tulajdonság, amit egy {\em típus-érték} pár határoz meg. A típus lehet például a ``common name'' (cn) - mindennapi
+  név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező.
+
+  A fa csúcsainak elhagyható és kötelező tulajdonságait az objektum (csúcs) osztályai írják le
+  (tulajdonságosztályok). A nevük: \texttt{objectclass}, és maguk is (speciális) tulajdonságok.
+
+  \subsection{Beállítások}
+  A beállítások a /etc/openldap alatt találhatóak.
+
+  \subsubsection{A /etc/openldap/slapd.conf}
+  Ez a fájl határozza meg a kiszolgáló működését. Csak a szerver felhasználója olvashatja. Több részből áll:
+  \begin{itemize}
+  \item Sémák (a használható attribútumokat adják meg)
+  \item Hozzáférés-vezérlési listák (ACL)
+  \item Titkosítás, hitelesítés és egyéb információk
+  \item A (háttér)adatbázis típusa, a keresést segítő index módja
+  \item Az LDAP faszerkezet csúcsát jelölő név
+  \item A szuperfelhasználó egyedi neve és jelszava (mindent olvas, és ír, az ACL nem érvényes rá)
+  \end{itemize}  
+
+  \paragraph{Séma} Az általunk használt séma az alábbi:
+
+  \ut{include\hspace{1.5cm} /etc/openldap/schema/core.schema\\
+    include\hspace{1.5cm} /etc/openldap/schema/cosine.schema\\
+    include\hspace{1.5cm} /etc/openldap/schema/inetorgperson.schema\\
+    include\hspace{1.5cm} /etc/openldap/schema/nis.schema\\
+    include\hspace{1.5cm} /etc/openldap/schema/misc.schema}
+  
+  Itt az első a rendszernek kell lényegében, a következő három az általánosan használt attribútumokat tartalmazza
+  (többek között a felhasználók definiálásához). Az utolsó ``\texttt{misc}'', azaz nem megszokott, most az ebben
+  definiáltakkal lesz meghatározva az a cím, amelyre érkezett leveleket az adott felhasználó fogadhatja, illetve melyre
+  továbbküldheti (ha nem küldi tovább, akkor is szükséges). Az ldap-ban tárol álnevek (aliasok) meghatározásához is
+  szükséges.
+  
+  \paragraph{Jogok (ACL)} A következő beállítás nagyon alapszintű, érdemes alaposabban utánaolvasni az openldap
+  leírásában, vagy épp az interneten. 
+
+  \ut{access to attr=userPassword\\
+    \beh[3] by dn="cn=admin,dc=panthernet" write\\
+    \beh[3] by anonymous auth\\
+    \beh[3] by self write\\
+    \beh[3] by * none\\\\
+    access to dn.children="dc=panthernet" by * read\\
+    \\
+    \# The admin dn has full write access\\
+    access to dn.children="ou=People,dc=panthernet"\\
+    \beh[3] by dn="cn=admin,dc=panthernet" write\\
+    \beh[3] by self write
+    \beh[3] by * read\\\\
+    access to * by * none}
+
+
+  Az itt látható jogosultság azt mondja, hogy a \texttt{userPassword} (jelszó) tulajdonságot írhatja az ``admin'', és a
+  bejegyzés (önmaga). Az admin egy különleges felhasználó, mert nincsen bent a Kerberosban, és különbözik a slapd.conf
+  fájlban megadottól is. Csak neki van igazi jelszava az ldap adatbázisban.  Ha nem lenne Kerberos, akkor viszont
+  mindenkié itt lenne. Ezért a ``\texttt{by self write}'' sor el is hagyható (javasolt). Névtelenül egyéltalán nem lehet
+  hozzáférni, mert hitelesítés szükséges (``\texttt{anonymous auth}''), mindenki másnak nincs rá joga.
+
+  Ezt leszámítva a teljes \texttt{dc=panthernet} alatti fát olvashatja mindenki (2. bejegyzés).
+
+  A harmadik megint túl megengedő, mert a ``\texttt{self write}'' itt is felesleges, csak egyes attribútumokra kellene
+  engedni.
+
+  \paragraph{A fa gyökere és a root ``user''}  A faszerkezet gyökerét, aminek a neve minden csúcs nevének végződése, a
+  \texttt{suffix} beállítás jelzi. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
+  azonosítja.
+  
+  \ut{suffix\hspace{1.5cm} "dc=panthernet"\\
+    rootdn\hspace{1.5cm} "cn=administrator,dc=panthernet"\\
+    rootpw\hspace{1.5cm} \{SSHA\}blabla}
+
+  Mint látható, a jelszót is meg kell adni. Lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
+  célszerű. Érdemes titkosítani, és az így kapott jelszót megadni. Az SSHA egy megfelelő algoritmus, egyirányú, ezért
+  nem lehet a jelszót visszaállítani, csak bruteforce-szal törhető (és szótári támadással). Tehát a jó jelszó: kis-
+  és nagybetűk, számok vegyesen, lehetőleg egyéb nyomtatható karakterekkel (pl \#, \&, !, stb) megtűzdelve, minél
+  hosszabb. Mivel a jeslszó hash formájában tárolódik, ezért több különböző jelszót megadva azonos hash-t kapunk. SHA1
+  esetén 160 bites a hash hossza, ennél hosszabb jelszavak esetén garantáltan lesz több egyező is.
+
+  Ha kerberossal hitelesített a felhasználó, aki hozzáfér a jelszóhoz és módosítja, akkor egy-egy rondább jelszót elég
+  csak bejelentkezésenként egyszer megadni, minden egyéb szolgáltatásnál már nem szükséges.
+
+  A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használata:\\
+  \ut{slappasswd -h {SSHA}}
+
+  \paragraph{Az adatbázis} Meg kell adni azt is, hogy milyen adatbázist használjon a háttérben az openldap szerver
+  (milyen {\em backendet}).
+
+  \ut{database        bdb\\
+   checkpoint      32      30 \# \textless kbyte\textgreater \textless min\textgreater\\
+   \# The database directory MUST exist prior to running slapd AND\\
+   \# should only be accessible by the slapd and slap tools.\\
+   \# Mode 700 recommended.\\
+   directory       /var/lib/openldap-data\\
+   \# Indices to maintain\\
+   index   objectClass     eq
+  }
+
+  Az adatbázis (\texttt{database}) lehet többféle, a legegyszerűbb az \texttt{ldbm}, a legjobb választás a
+  \texttt{bdb}. A \texttt{directory} beállításnak megfelelelő könyvtárban lesz az adatbázis. A könyvtárra a \texttt{700}
+  jogot ajánlott megadni, hogy ne tudja a könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a
+  kereséshez használt index.
+  
+  \paragraph{Kerberos, TLS, és ami még kimaradt} Az a jó, ha a szervert csak titkosítottan (TLS-sel) érhetjük el. TLS =
+  Transport Layer Security. Beállítása:\\
+  \ut{\begin{tabular}{ll}
+      TLSCACertificateFile & /etc/openldap/ssl/cacert.pem\\
+      TLSCertificateFile & /etc/openldap/ssl/ldaps.panthernet.crt\\
+      TLSCertificateKeyFile & /etc/openldap/ssl/ldaps.panthernet.key\\
+      TLSCipherSuite &  Medium,Heigh
+  \end{tabular}}
+  
+  Az első sor jelzi a tanusítvány-kiszolgáló (CA) tanusítványát (certificate). A második az openldapét, a harmadik pedig
+  az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
+  tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi.
+  
+  A maradék beállítás:
+  
+  \ut{sasl-realm panthernet\\
+    sasl-regexp uid=([\^,]+),.*cn=GSSAPI uid=\$1,ou=People,dc=panthernet\\
+    sasl-host zeratul.panthernet\\
+    LogLevel 0}
+  
+  A \texttt{LogLevel} mondja meg, mennyire bőbeszédűen (verbose) írja bele a syslogba, hogy mi történik. A ``0'' érték
+  hatására szinte semmit sem ír, hibakeresésnél jön jól.
+
+  A \texttt{sasl-realm} azt az ún. realm-ot határozza meg, amiben a kerberos bejegyzések vannak. A \texttt{sasl-host} a
+  kiszolgáló helyét mondja meg, \texttt{sasl-regexp} pedig azt, hogy hogyan lehet megtalálni azt a bejegyzést, aki
+  csatlakozott a szerverhez.
+
+  
+  \subsubsection{A /etc/openldap/ldap.conf}
+  Ez a fájl mondja meg, hogy az \texttt{ldapsearch}, és hasonló parancsok alapesetben milyen géphez, milyen protokollal
+  és milyen végződésű helyhez (lásd a fentebbi \texttt{suffix}, itt \texttt{BASE}) csatlakozik. A fájl mindenki által
+  olvasható.
+  
+  \ut{BASE    dc=panthernet\\
+    URI     ldaps://ldaps.panthernet\\
+    TLS\_CACERT /etc/openldap/ssl/cacert.pem }
+  
+  A \texttt{BASE} az, ami alatt keres (részfát határoz meg), a \texttt{URI} azt, hogy titkosított protokollon (ldaps), az
+  ``ldaps.panthernet'' nevű gépen érhető el a szerver. A titkosítás miatt meg kell adni azt a helyet, ahol a CA
+  tanusítványa található, ez a \texttt{TLS\_CACERT} beállítás.
+  
+  \subsection{A rendszer felkészítése az ldap használatához}
+  A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az ldapban tárolt
+  felhasználók ténylegesen létezhessenek az adott gépen, fel kell rakni az ``nss\_ldap'' csomagot. Általában az ldap
+  szerver különálló gépen található, de nincs mindig így, ezért néha azon is be kell állítani a csomagot
+  (\filename{/etc/ldap.conf} tartalmazza a beállításait).
+
+  \subsubsection{nss-ldap}
+  A \filename{/etc/ldap.conf} néhány fontos beállítása:
+  
+  \ut{base dc=panthernet\\
+    uri ldaps://ldaps.panthernet/\\
+    \# The distinguished name to bind to the server with.\\
+    \# Optional: default is to bind anonymously.\\
+    \#binddn cn=proxyuser,dc=padl,dc=com\\
+    \\
+    \# The credentials to bind with.\\
+    \# Optional: default is no credential.\\
+    \#bindpw secret}
+  
+  Az első kettő lényeges. Ez egyik szerver elérését mondja meg (\texttt{uri}): ldaps, azaz titkosított, utána a gép neve,
+  a másik, a \texttt{base} pedig a faszerkezet egy csúcsát, ami alatt keres a rendszer (\texttt{ou=People},
+  \texttt{ou=Group}).
+
+  A \texttt{binddn} és a \texttt{bindpw} segítségével elérhető, hogy névtelenül ne lehessen a szerverhez csatlakozni,
+  onnan információkat gyűjteni, csak az itt megadott ``felhasználó'' és jelszó tudjon. Igazából a fa bármely csúcsa
+  lehet, ha annak van joga olvasni szinte bármit, kivéve például a \texttt{userPassword} tulajdonságot. Ehhez a sor
+  eleji ``\#'' karaktert (megjegyzés jele) ki kell törölni, és érvényes adatot írni a helyére.
+
+  A fájl többi részét nem kell (de lehet) módosítani.
+  
+  
+  \paragraph{nsswitch.conf} Az ldap szerverhez történő csatlakozást a fentebb látható módon garantáltuk, de ez
+  kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a \filename{/etc/nsswitch.conf} fájl
+  módosításával tehető meg.
+  
+  \ut{\begin{tabular}{ll}passwd:& files ldap\\
+    shadow:& files ldap\\
+    group: & files ldap\end{tabular}}
+  
+  Vagyis a jelszavakat, shadow jelszavakat és a csoportokat egyrészt a helyi fájlokból, másrészt ldapból olvassa ki (az
+  elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
+
+  \subsection{Az adatok feltöltése}
+  Ha ideiglenesen a TLS-re és a Kerberos (SASL) realm-ra vonatkozó információkat kivesszük, akkor már most tesztelhető a
+  rendszer a következő utasítással (keresés), ami ``üres'' kimenetet ad.\\
+  \texttt{ldapsearch -x}
+  
+  A mostani példában felhasználók, csoportok és email aliasok (álnevek) szerepelnek. Az ezek szülőcsúcsáig bezárólag
+  kézzel kell (érdemes) létrehozni a fát, utána már lehet szkriptekkel is beszúrni az adatokat.
+
+
+
+  \subsubsection{Az LDAP bejegyzések hozzáadása}
+
+  Az ldap a bejegyzéseket LDIF formátumban jeleníti meg (például az ldapsearch és slapcat parancsok kimenete ilyen), és
+  ezt a formátumot használva lehet adminisztrálni is. Ezért az összes bejegyzés (csúcs) ilyen formában van itt is.
+
+  A \texttt{dc} az egyedi név, az \texttt{o} a szervezet (organization) rövidítése. A fenti objektum (csúcs) a fa
+  gyökere:
+
+  \ut{dn: dc=panthernet\\
+    objectClass: dcObject\\
+    objectClass: organization\\
+    dc: panthernet\\
+    o: PantherNetwork}
+  
+
+  Ez a \filename{slapd.conf} fájlban definiált ``felhasználó''. Valójában nem is felhasználó, ezért is más az
+  objectClass. Kettő is van neki, a második (\texttt{top}) csak annyit jelent, hogy az objektumnak lehetnek
+  gyerekei. Ezért ez egy felesleges objectClass, de nem helytelen.
+  
+  \ut{dn: cn=Manager,dc=panthernet\\
+    objectClass: organizationalRole\\
+    objectClass: top\\
+    cn: Manager}
+
+  A Manager-től független adminisztrátori jogokkal rendelkező bejegyzés. Nem kötelező, mégis jobb, ha szét vannak
+  választva a jogosultságok, akár több részre is. a \texttt{simpleSecurityObject} tartalmazza a \texttt{userPassword}
+  tulajdonságot. A \texttt{description} mező pedig a leírás, melyet bármely objektum tartalmazhat.
+  
+  \ut{dn: cn=admin,dc=panthernet\\
+    objectClass: organizationalRole\\
+    objectClass: simpleSecurityObject\\
+    cn: admin\\
+    description: LDAP administrator\\
+    userPassword: {SSHA}blabla}
+  
+
+  Ez a bejegyzés alá kerül az összes (valódi) felhasználó. Szervezeti egységet jelent az \textt{organizationalUnit}:
+
+  \ut{dn: ou=People,dc=panthernet\\
+    objectClass: organizationalUnit\
+    ou: People}
+
+  A következő egy felhasználói bejegyzés. Nagyon sok tulajdonság kitöltetlen. A \texttt{top} jelentése már elhangzott.
+  
+  Az \texttt{inetorgPerson} többek között a következő opcionális tulajdonságokat határozza meg (inetorgperson.schema):
+  \texttt{homePhone}, \texttt{homePostalAddress}, \texttt{initials}, \texttt{mail},  \texttt{mobile},
+  \texttt{roomNumber}, \texttt{uid}.
+  
+  A \textt{person} (\texttt{core.schema}) esetén az \texttt{sn}, \texttt{cn} attribútumokat kötelező definiálni
+  (vezetéknév az sn). Opcionális többek között: \texttt{ userPassword}, \texttt{telephoneNumber}.
+  
+  
+  Az \texttt{organizationalPerson} valamilyen szervezethez tartozó személyt jelent. Itt többek között
+  \texttt{telephoneNumber}, \texttt{ou} (azaz a szervezeti egység), \texttt{postalAddress} tulajdonságok szerepelnek.
+
+  A \texttt{inetLocalMailRecipient} a misc.schema-ban definiált, \texttt{mailLocalAddress}, \texttt{mailHost} ,
+  \texttt{mailRoutingAddress} az opcionális tulajdonságai. Ebből az első az, amire érkeznek a levelek, az utolsó meg
+  amire mennek. Ha helyi fiók (pl. panther), akkor a levelezőszervernek (pl. Cyrus) továbbítódik, különben a megadott
+  címre.
+
+  A \texttt{posixAccount} és \texttt{shadowAccount} tartalmazza a \texttt{/etc/passwd} és \texttt{/etc/shadow} fájlban
+  is megtalálható információjat.
+  
+
+  \ut{dn: uid=panther,ou=People,dc=panthernet\\
+    objectClass: top\\
+    objectClass: person\\
+    objectClass: inetOrgPerson\\
+    objectClass: organizationalPerson\\
+    objectClass: inetLocalMailRecipient\\
+    objectClass: posixAccount\\
+    objectClass: shadowAccount\\
+    cn:: VMOzdGggTMOhc3psw7MgQXR0aWxh\\
+    cn:: TMOhc3psw7MgQXR0aWxhIFTDs3Ro\\
+    uid: panther\\
+    mobile: 06\\
+    homePostalAddress: Erd\\
+    mailRoutingAddress: panther\\
+    mailLocalAddress: Toth.Laszlo.Attila\\
+    mailLocalAddress: Laszlo.Attila.Toth\\
+    gecos: Toth Laszlo Attila\\
+    sn:: VMOzdGg=\\
+    homeDirectory: /home/panther\\
+    loginShell: /bin/bash\\
+    uidNumber: 1000\\
+    gidNumber: 100\\
+    givenName:: TMOhc3psw7MgQXR0aWxh}
+
+  Illetve:
+  
+  \ut{dn: uid=parad,ou=People,dc=panthernet\\
+    objectClass: top\\
+    objectClass: person\\
+    objectClass: inetOrgPerson\\
+    objectClass: organizationalPerson\\
+    objectClass: inetLocalMailRecipient\\
+    objectClass: posixAccount\\
+    objectClass: shadowAccount\\
+    cn: Nagy Adrienn\\
+    cn: Adrienn Nagy\\
+    gecos: Nagy Adrienn\\
+    sn: Nagy\\
+    givenName: Adrienn\\
+    uid: parad\\
+    mailRoutingAddress: parad\\
+    mailLocalAddress: Nagy.Adrienn\\
+    mailLocalAddress: Adrienn.Nagy\\
+    homeDirectory: /home/parad\\
+    loginShell: /bin/bash\\
+    uidNumber: 1001\\
+    gidNumber: 100}
+
+  \newpage
+  Az email aliasokat tartalmazó ág csúcsa:
+
+  \ut{ dn: ou=MailAliases,dc=panthernet\\
+    ou: MailAliases\\
+    objectClass: top\\
+    objectClass: organizationalUnit
+  }
+  
+  Egy alias az account objectClass az uid attribútum miatt kell. A mailRoutingAddress-ben szóközzel elválasztott címekre
+  továbbítódik a levél:
+  
+  \ut{dn: uid=mindenki,ou=MailAliases,dc=panthernet\\
+    objectClass: account\\
+    objectClass: top\\
+    objectClass: inetLocalMailRecipient\\
+    mailLocalAddress: mindenki\\
+    mailLocalAddress: everyone\\
+    mailLocalAddress: everybody\\
+    uid: mindenki\\
+    mailRoutingAddress: panther}
+  
+  A csoportokat tartalmazó szervezeti egység:
+  
+  \ut{dn: ou=Group,dc=panthernet\\
+    objectClass: organizationalUnit\\
+    ou: Group}
+  
+  Egy csoportbejegyzés (több felhasználó is a tagja):
+
+  \ut{dn: cn=testgrp,ou=Group,dc=panthernet\\
+    objectClass: top\\
+    objectClass: posixGroup\\
+    cn: testgrp\\
+    gidNumber: 10000\\
+    memberUid: panther\\
+    memberUid: parad}
+  
+  
+  Ezeket a bejegyzéseket fájlba mentve egyből hozzáadhatjuk a futó ldap szerverhez kapcsolódva:\\
+  \texttt{ldapadd -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+
+ 
+  
+  \subsubsection{Az LDAP bejegyzések módosítása}
+
+  A módosításokat is LDIF formában kell megadni, a használt parancs:
+  \texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+  
+  Attribútum hozzáadása:
+  
+  \ut{dn: uid=panther,ou=People,dc=panthernet\\
+    changeType: modify\\
+    add: userPassword\\
+    userPassword: \{KERBEROS\}panther@PANTHERNET\}}
+  
+  \newpage
+  Lehet törölni is egy attribútumot, például:
+  
+  \ut{dn: uid=panther,ou=People,dc=panthernet\\
+      changeType: modify\\
+    delete: userPassword}
+  
+  Ha egy adott attribútumot (amiből több különböző értékű is lehet) kellene, akkor:
+  
+  \ut{dn: uid=panther,ou=People,dc=panthernet\\
+    changeType: modify\\
+    delete: mail\\
+    mail: panther@elte.hu}
+
+  A teljes bejegyzés törlése:
+
+  \ut{dn: uid=panther,ou=People,dc=panthernet\\
+    changeType: delete}
+  
+  
+  \newpage
+  \section{Tanúsítvány-kiszolgáló (CA) beállítása}
+  
+  Az SSL/TLS titkosítást használó szerverek mindegyike egy-egy tanúsítványt küld a kliensnek. Mire is jó ez? A
+  kiszolgálót hitelesíti ez, vagyis azt jelzi, hogy a kliens biztosan azzal kommunikál, akivel szeretne. Azaz csak
+  majdnem. Ugyanazzal a tanusítvánnyal rendelkező szerverrel.
+  
+  Alapesetben önaláírtak ezek, vagyis hitelességi értékük csak annyi, hogy elvileg megint ugyanahhoz kapcsolódik a
+  szerver. No de ha új tanúsítványa lesz a szervernek, akkor máris nem megbízható. Legjobb választás az lenne, ha
+  egyszerűen nem fogadnánk el ilyet, ha van beleszólásunk.
+
+  Van más megoldás is: saját tanúsítvány-kiszolgáló (CA) beállítása, és ennek ún {\em gyökértanúsítványát, root
+  certificate-jét} aláiratni egy másik, sokak által ismert tanúsítványkiszolgálóval, vagy csak az adott szerverét
+  aláiratni. Ez pénzbe kerül. Ha ezt el szeretnénk kerülni, akkor is jó a CA használata, ennek certificate-jét
+  importálva/felhasználva sok helyen (fentebb már láttunk rá példát), pl böngészőhöz is hozzáadva.
+  
+  \subsection{openssl.cnf}
+  Ez a fájl írja le a CA működését. Több CA is lehet benne, ebből egyik az alapértelmezett (lásd a CA szakasz).
+
+  A CA\_default az a CA, amit most használunk, lehetne más neve is, csak így utal arra, hogy ő az alapértelmezett.
+
+  \ut{[ ca ]\\
+    default\_ca      = CA\_default}
+    
+  \ut{\begin{tabular}{ll}
+      [ CA\_default ] & \\
+      dir             &= /root/panthernet.ca\\
+      certs           &= \$dir/certs\\
+      crl\_dir         &= \$dir/crl\\
+      database        &= \$dir/ca.db.index\\
+      new\_certs\_dir   &= \$dir/newcerts\\
+      &\\
+      certificate     &= \$dir/ca/cacert.pem\\
+      serial          &= \$dir/ca.db.serial\\
+      &\\
+      crl             &= \$dir/crl.pem\\
+      private\_key    &= \$dir/ca/private/cakey.pem\\
+      RANDFILE        &= \$dir/ca.db.rand\\
+      &\\
+      x509\_extensions &= usr\_cert\\
+      &\\
+      name\_opt        &= ca\_default\\
+      cert\_opt        &= ca\_default\\
+      default\_days    &= 365\\
+      default\_crl\_days &= 30\\
+      default\_md      &= md5\\
+      preserve        &= no\\
+      policy          &= policy\_match\end{tabular}}
+
+  \ut{\begin{tabular}{ll}
+      [ policy\_match ] & \\
+      countryName             &= match\\
+      stateOrProvinceName     &= optional\\
+      organizationName        &= match\\
+      organizationalUnitName  &= optional\\
+      commonName              &= supplied\\
+      emailAddress            &= supplied
+    \end{tabular}
+  }
+  
+  A második lista a CA beállításait tartalmazza, a harmadik pedig azt, hogy a CA mikor tud aláírni egy tanúsítványt:
+  minek kell egyeznie, mi az, ami nem kötelező, és mi az, ami kötelező, de bármi lehet.
+
+  Megadható az is, hogy alapértelmezetten mivel legyen kitöltve a tanúsítvány, valamint hogy milyen kérdések
+  szerepeljenek, csakúgy, mint az alapértelmezett kulcshosszt is. Ennek részlete:
+  \ut{\begin{tabular}{ll}
+      [\ req\ ]&\\
+      default\_bits           &= 1024\\
+      distinguished\_name     &= req\_distinguished\_name
+    \end{tabular}
+  }
+  
+  \ut{\begin{tabular}{ll}
+      [\ req\_distinguished\_name\ ]&\\
+      countryName                     &= Country Name (2 letter code)\\
+      countryName\_default             &= HU\\
+      countryName\_min                 &= 2\\
+      countryName\_max                 &= 2\\
+      stateOrProvinceName             &= State or Province Name (full name)\\
+      stateOrProvinceName\_default     &=\\
+      localityName                    &= Locality Name (eg, city)\\
+      localityMame\_default            &= Budapest\\
+      0.organizationName              &= Organization Name (eg, company)\\
+      0.organizationName\_default      &= PantherHome\\
+      organizationalUnitName          &= Organizational Unit Name (eg, section)\\
+      commonName                      &= Common Name (eg, YOUR name)\\
+      commonName\_max                  &= 64\\
+      emailAddress                    &= Email Address\\
+      emailAddress\_max                &= 64\\
+    \end{tabular}
+  }
+  
+  
+  
+  A CA tanúsítványának létrehozása, 10 évig érvényesen:\\
+  \texttt{openssl req -config /root/panthernet.ca/openssl.cnf \textbackslash\\
+    \beh[2] -new -x509 -keyout /root/panthernet.ca/ca/private/cakey.pem \textbackslash\\
+    \beh[2] -out /root/panthernet.ca/ca/cacert.pem  -days 3650}\\
+ 
+  A következő script hoz létre egy ``kérést'' (request) aláírásra, vagyis az aláiratlan  tanúsítványt (.csr: certificate
+  sign request) és a hozzá tartozó  privát kulcsot (.key fájl).
+  
+  \ut{\#!/bin/bash\\
+    \# file: pnet-careq\\
+    if [[ \$\# != 1 ]]; then exit 4; fi\\
+    openssl req -config /root/panthernet.ca/openssl.cnf  -nodes \textbackslash\\
+    \beh[2] -newkey rsa:2048  -keyout \$1.key -out \$1.csr}
+  
+  Az előző szkript által generált adatot alá is irathatjuk. A létrehozott, aláírt tanúsítvány a .crt kiterjesztésű
+  fájlba kerül.
+  
+  \ut{\#!/bin/bash\\
+    \# file: pnet-casign\\
+    if [[ \$\# != 1 ]]; then exit 4; fi\\
+    openssl ca -config /root/panthernet.ca/openssl.cnf  -policy policy\_match \textbackslash \\
+    \beh[2] -out \$1.crt -infiles \$1.csr}
+
+  Aláírásra példa:
+
+  \ut{zeratul panthernet.certs \# pnet-casign ldaps.panthernet\\\hspace*{1mm}
+    Using configuration from /root/panthernet.ca/openssl.cnf\\
+    Enter pass phrase for /root/panthernet.ca/ca/private/cakey.pem:\\
+%    DEBUG[load\_index]: unique\_subject = "yes"\\
+    Check that the request matches the signature\\
+    Signature ok\\
+    Certificate Details:\\
+    Serial Number: 1 (0x1)\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ Validity\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ Not Before: Oct 15 10:36:30 2005 GMT\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ Not After : Oct 15 10:36:30 2006 GMT\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ Subject:\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ countryName\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ = HU\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ organizationName\ \ \ \ \ \ \ \ \ \ = PantherHome\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ commonName\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ = ldaps.panthernet\\
+    \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ emailAddress\ \ \ \ \ \ \ \ \ \ \ \ \ \ = postmaster@panthernet}
+
+  \section{Postfix}
+  \subsection{/etc/mail/aliases}
+  Részlet: az adott felhasználónak szóló levelek kinek továbbítódjanak. Így kisebb ``levlistát'' is meg lehet adni.
+  
+  \ut{webmaster:          root\\
+    www:                webmaster\\
+    ca:             root\\
+  }
+  
+  Ha módosul a fájl, akkor le kell futtatni azt a parancsot, ami a postfix számára feldolgozható formában generál egy
+  másikat, éspedig:\\
+  \texttt{/usr/bin/newaliases}
+  
+  \subsection{/etc/postfix/main.cf}
+  A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén myilen
+  gépnevet adjon meg...
+  
+  \ut{myhostname = zeratul.panthernet\\
+    mydomain = panthernet\\
+    myorigin = \$myhostname\\
+    mydestination = \$myhostname, localhost.\$mydomain, localhost, \$mydomain\\
+    relayhost = smtp.axelero.hu\\
+    alias\_maps = hash:/etc/mail/aliases,\\
+    \beh[2] ldap:/etc/postfix/ldapaliases-mailaliases.cf, \\
+    \beh[2] ldap:/etc/postfix/ldapaliases-people.cf}
+
+
+  Az első kettő nem nagyon lényeges, inkább csak a rá történő hivatkozásban van szerepe. A \texttt{myorigin} az, ami
+  után megadott gépnév fog szerepelni a levél fejlécében, hogy ezen át történt a továbbítás.
+  
+  A \textt{mydestination} vesszővel elválasztott lista, azon gépneveket tartalmazza, amelyekre fogad levelet, vagyis az
+  itt felsorolt nevekhez tartzó felhasználók (pl \texttt{user@\$mydomain}) leveleit nem egy másik smtp szervernek
+  továbbítja, hanem az imap, pop, stb kiszolgálónak, ahonnan az adott felhasználó letöltheti leveleit.
+  
+  A \texttt{relayhost} az, ahova alapesetben (kivéve a \filename{/etc/postfix/transport} fájlban megadott címzetteket,
+  tartományokat) továbbítja a leveleket. Többféle formátumban meg lehet adni, IPv6-ot is támogat. Formáutma pl a fenti,
+  aztán 192.168.0.1:25 is lehet (port számmal). A lehetőségek a konfigurációs fájlban megjegyzésben láthatók.
+
+  Amennyiben nincsen \texttt{relayhost}, akkor közvetlenül a címzett levelezőszerveréhez csatlakozik (amit a cím domain
+  részéhez tartozó MX dns bejegyzésből vesz).
+
+  Az \texttt{alias\_maps} mondja meg, hogy egy adott email címhez tartozó levelek hova továbbítódjanak. Itt most az
+  \filename{aliases} fájlban találhatóak, valamint ldap-ban, a két fájl különböző beállításokat tartalmaz.
+
+  
+  \subsection{/etc/postfix/ldapaliases.cf}
+  Az ldap-ban történő keresést az alábbi szerkezetű fájl teszi lehetővé.
+
+  \ut{server\_host = ldap://ldaps.panthernet:389\\
+    search\_base = ou=MailAliases,dc=panthernet\\
+    version = 3\\
+    scope = one\\
+    bind = no\\
+    query\_filter = (maillocaladdress=\%s)\\
+    result\_attribute = mailroutingaddress\\
+    dereference = 3\\
+    timeout = 10}
+  
+  Az első sor azt az URI-t adja meg, ami a szervert azonosítja. A postfix a \texttt{search\_base} beállításban megadott
+  csúcs alatti részfában keres. Mivel a \texttt{scope} értéke ``one'', az előbb megadott csúcs gyerekeit nézi végig. A
+  3-as verzió  a mostani. A \texttt{bind = no} a névtelen kapcsolódást teszi lehetővé (mint a /etc/ldap.conf-ban a
+  hasonló beállítás).
+
+    
+    
+
+ 
+
+  
+  
+\end{document}
