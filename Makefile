@@ -27,4 +27,4 @@ make:
 	mcedit Makefile
 pdf: silent viewpdf
 html:
-	html/reparse
+	@html/reparse

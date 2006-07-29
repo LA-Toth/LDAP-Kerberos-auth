@@ -77,7 +77,7 @@
   \begin{itemize}
   \item OpenLDAP
   \item MIT-Krb5 (Kerberos)
-  \item Tanusítvány-kiszolgáló (Certificate Authority)
+  \item Tanúsítvány-kiszolgáló (Certificate Authority)
   \item PAM
   \item Cyrus saslauthd
   \item OpenSSH
@@ -154,7 +154,7 @@
     \# The admin dn has full write access\\
     access to dn.children="ou=People,dc=panthernet"\\
     \beh[3] by dn="cn=admin,dc=panthernet" write\\
-    \beh[3] by self write
+    \beh[3] by self write\\
     \beh[3] by * read\\\\
     access to * by * none}
 
@@ -218,7 +218,7 @@
       TLSCipherSuite &  Medium,Heigh
   \end{tabular}}
   
-  Az első sor jelzi a tanusítvány-kiszolgáló (CA) tanusítványát (certificate). A második az openldapét, a harmadik pedig
+  Az első sor jelzi a tanúsítvány-kiszolgáló (CA) tanúsítványát (certificate). A második az openldapét, a harmadik pedig
   az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
   tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi.
   
@@ -248,7 +248,7 @@
   
   A \texttt{BASE} az, ami alatt keres (részfát határoz meg), a \texttt{URI} azt, hogy titkosított protokollon (ldaps), az
   ``ldaps.panthernet'' nevű gépen érhető el a szerver. A titkosítás miatt meg kell adni azt a helyet, ahol a CA
-  tanusítványa található, ez a \texttt{TLS\_CACERT} beállítás.
+  tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
   
   \subsection{A rendszer felkészítése az ldap használatához}
   A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az ldapban tárolt
@@ -341,7 +341,7 @@
   Ez a bejegyzés alá kerül az összes (valódi) felhasználó. Szervezeti egységet jelent az \textt{organizationalUnit}:
 
   \ut{dn: ou=People,dc=panthernet\\
-    objectClass: organizationalUnit\
+    objectClass: organizationalUnit\\
     ou: People}
 
   A következő egy felhasználói bejegyzés. Nagyon sok tulajdonság kitöltetlen. A \texttt{top} jelentése már elhangzott.
@@ -495,7 +495,7 @@
   
   Az SSL/TLS titkosítást használó szerverek mindegyike egy-egy tanúsítványt küld a kliensnek. Mire is jó ez? A
   kiszolgálót hitelesíti ez, vagyis azt jelzi, hogy a kliens biztosan azzal kommunikál, akivel szeretne. Azaz csak
-  majdnem. Ugyanazzal a tanusítvánnyal rendelkező szerverrel.
+  majdnem. Ugyanazzal a tanúsítvánnyal rendelkező szerverrel.
   
   Alapesetben önaláírtak ezek, vagyis hitelességi értékük csak annyi, hogy elvileg megint ugyanahhoz kapcsolódik a
   szerver. No de ha új tanúsítványa lesz a szervernek, akkor máris nem megbízható. Legjobb választás az lenne, ha
@@ -627,17 +627,6 @@
     \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ emailAddress\ \ \ \ \ \ \ \ \ \ \ \ \ \ = postmaster@panthernet}
 
   \section{Postfix}
-  \subsection{/etc/mail/aliases}
-  Részlet: az adott felhasználónak szóló levelek kinek továbbítódjanak. Így kisebb ``levlistát'' is meg lehet adni.
-  
-  \ut{webmaster:          root\\
-    www:                webmaster\\
-    ca:             root\\
-  }
-  
-  Ha módosul a fájl, akkor le kell futtatni azt a parancsot, ami a postfix számára feldolgozható formában generál egy
-  másikat, éspedig:\\
-  \texttt{/usr/bin/newaliases}
   
   \subsection{/etc/postfix/main.cf}
   A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén myilen
@@ -652,9 +641,12 @@
     \beh[2] ldap:/etc/postfix/ldapaliases-mailaliases.cf, \\
     \beh[2] ldap:/etc/postfix/ldapaliases-people.cf}
 
-
-  Az első kettő nem nagyon lényeges, inkább csak a rá történő hivatkozásban van szerepe. A \texttt{myorigin} az, ami
-  után megadott gépnév fog szerepelni a levél fejlécében, hogy ezen át történt a továbbítás.
+  
+  Alapesetben a \texttt{mydomain} a \texttt{myhostname} végével egyezik meg (nem kötelez megadni). Az SMTP protokollban
+  ez utóbbi szerepel, vagyis amikor a levelet elküdli a postfix, akkor ilyen néven csatlakozik a másik szerverhez
+  (\$myhostname). A \texttt{myorigin} az, ami után megadott gépnév fog szerepelni az elkldött levél feladójaként és akár
+  címzettként is. Például a root küld egy levelet saját magának: \texttt{mail root}. Ekkor mind a feladó, mind a címzett
+  root@\$myorigin lesz.
   
   A \textt{mydestination} vesszővel elválasztott lista, azon gépneveket tartalmazza, amelyekre fogad levelet, vagyis az
   itt felsorolt nevekhez tartzó felhasználók (pl \texttt{user@\$mydomain}) leveleit nem egy másik smtp szervernek
@@ -663,13 +655,31 @@
   A \texttt{relayhost} az, ahova alapesetben (kivéve a \filename{/etc/postfix/transport} fájlban megadott címzetteket,
   tartományokat) továbbítja a leveleket. Többféle formátumban meg lehet adni, IPv6-ot is támogat. Formáutma pl a fenti,
   aztán 192.168.0.1:25 is lehet (port számmal). A lehetőségek a konfigurációs fájlban megjegyzésben láthatók.
-
+  
   Amennyiben nincsen \texttt{relayhost}, akkor közvetlenül a címzett levelezőszerveréhez csatlakozik (amit a cím domain
   részéhez tartozó MX dns bejegyzésből vesz).
 
   Az \texttt{alias\_maps} mondja meg, hogy egy adott email címhez tartozó levelek hova továbbítódjanak. Itt most az
   \filename{aliases} fájlban találhatóak, valamint ldap-ban, a két fájl különböző beállításokat tartalmaz.
+  
+  \subsection{/etc/mail/aliases}
+  Debian rendszereken ennek a fájlnak a helye: \filename{/etc/aliases}.
+  
+  Formátumra részlet:\\
+  \ut{webmaster:  root\\
+    www:                webmaster\\
+    \\
+    levlista: panther@elte.hu root}
+  
+  Jelen esetben a www címre küldött levelek a webmasternek továbbítódnak, ami még mindig csak virtulális cím, vagyis a
+  neki címzett levelek a root felhasználónak továbbítódnak. Így a www címre küldött leveleket is a root kapja meg.
+  
+  Kisebb, statikus levelezési listák is megadhatóak így, ahol több címzett van.
 
+  A Postfix ezt még nem kezeli, ezért adatbázist kell létrehozni belőle (erre utal a \texttt{hash} a fájlnév előtt), ez
+  a \texttt{/usr/bin/newaliases} paranccsal tehető meg. A létrehozott fájl: /etc/mail/aliases.db.
+
+  
   
   \subsection{/etc/postfix/ldapaliases.cf}
   Az ldap-ban történő keresést az alábbi szerkezetű fájl teszi lehetővé.
@@ -690,8 +700,60 @@
   hasonló beállítás).
 
     
-    
+  \section{Kerberos}
 
+  Egy részletes leírás itt olvasható: http://cfhay.inf.elte.hu/kerberos/leiras.html
+
+  A Kerberos a felhasználók (és szolgáltatások) biztonságos hitelesítésére szolgál. Amikor valaki bejelentkezik a gépre
+  a jelszójával, akkor kap egy őt azonosító \emph{ticket}-et, jegyet. Ezzel igényelhet továbbiakat, például amikor
+  továbbssh-zik egy másikra, vagy éppen elolvassa a levleleit.
+  
+  A DNS-hez hasonlóan itt is tartományok vannak, csak ezeket \emph{realm}-oknak hívják. Például az example.com-hoz
+  tartozó realm EXAMPLE.COM (vagyis a domain név nagybetűs alakja, megszokásból, ugyanis nem kötelező így
+  eljárni). Nálam ez PANTHERNET.
+
+  Bejelentkezés után kapott ``jegy'' a \texttt{krbtgt/PANTHERNET@PANTHERNET} lesz. Itt a név a krbtgt (pontosabban
+  krbtgt/PANTHERNET) és a realm a ``@'' után álló rész, ami szintén PANTHERNET. Az adott felhasználó,
+  pl. \texttt{panther} bejegyzése a \texttt{panther@PANTHERNET} alakú, a néven kívül további tulajdonságok is tartoznak:
+  mikor jár le a jelszó, milyen lehet (bármilyen, vagy pl. kell kisbetű is, szám is, stb.). Ez a kettő szorosan
+  összekapcsolódik. Az utóbbi a felhasználót azonosítja, az előbbi a kerberizált szolgáltatások elérésére szolgál, ezért
+  is a neve \emph{ticket granting ticket}, vagyis további jegyeket biztosító jegy.
+  
+  Egy realm nem csak felhasználókat tartalmaz, hanem szolgáltatásokat is, ezek formája:
+  \texttt{szolgáltatásnév/gépnév@REALM}. Ilyen például a \texttt{imaps/zeratul.panthernet@PANTHERNET}. Ezt a jegyet
+  akkor kapjuk meg, ha már egyszer bejelentkeztünk az imap szerverre. SSH szerver használata esetén pédául a
+  \texttt{host/fenix.panthernet@PANTHERNET} jegyet kapjuk meg.
+
+  \subsection{A kerberos beállítása}
+  A legfontosabb beállásokat a \texttt{/etc/krb5.conf} tartalmazza.
+  
+  \subsubsection{/etc/krb5.conf}
+  A fájlt mindenki olvashatja. Nálam ezek a beállítások vannak:
+
+  \ut{[libdefaults]\\
+    \hspace*{2cm}ticket\_lifetime = 86400\\
+    \hspace*{2cm}default\_realm = PANTHERNET\\
+    \hspace*{2cm}forwardable = true\newline\newline
+	    [realms]\\
+	    \hspace*{2cm}PANTHERNET = \{\\
+	          \hspace*{2cm}kdc = 10.0.1.101:88\\
+	          \hspace*{2cm}admin\_server = 10.0.1.101:749\\
+	          \hspace*{2cm}\}\newline\newline
+			  [domain\_realm]\\
+			  \hspace*{2cm}.panthernet = PANTHERNET\\
+			  \hspace*{2cm}panthernet = PANTHERNET\\
+			  \hspace*{2cm}localhost = PANTHERNET\newline\newline
+				  [logging]\\
+				  \hspace*{2cm}kdc = FILE:/var/log/krb5kdc.log\\
+				  \hspace*{2cm}admin\_server = FILE:/var/log/kadmin.log\\
+				  \hspace*{2cm}default = FILE:/var/log/krb5lib.log}
+  
+  A logolás (logging) nem túl érdekes. A libdefaults tartalmazza az alapértelmezett beállításokat. Az első sor a jegy
+  élettartamát adja meg, mely most egy nap. A következő az alapértelmezett realm, amely azért szükséges, hogy ne kelljen
+  mindig kiírni, melyik realmról van szó. Az utolsó pedig azt jelzi, hogy a kapott jegyek továbbíthatók más szerverekre
+  (például ssh-n keresztül).
+  
+  
  
 
   

@@ -1,10 +1,10 @@
-#!/bin/bash -x
+#!/bin/bash
 cat postfix-ldap-kerberos.tex |
     sed 'sA\\newcommand{\\ut}\[1\]{\\vspace{5mm}\\fbox{\\parbox{130mm}{\\texttt{\\noindent{#1}}}}\\vspace{5mm}}A\\newcommand{\\ut}[1]{\\texttt{\\noindent{#1}}}A' > html/postfix-ldap-kerberos.tex || exit 1
 
 
-cd html || exit 1
-latex2html -noinfo -split 0 -nonavigation -lcase_tags  -html_version 4.0,unicode -toc_depth 5 --reuse 2 -subdir -mkdir -image_type png postfix-ldap-kerberos 
+cd html || exit 2
+latex2html -noinfo -split 0 -nonavigation -lcase_tags  -html_version 4.0,unicode -toc_depth 5 --reuse 2 -subdir -mkdir -image_type png postfix-ldap-kerberos  2>/dev/null >&2
 cd postfix-ldap-kerberos
 
 for i in *.html; do
