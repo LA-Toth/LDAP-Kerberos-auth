@@ -63,7 +63,7 @@
 
 \title{Postfix, LDAP, Kerberos, SSH...}
 \author{Tóth László Attila (panther@elte.hu)}
-\date{2006. július 26.}
+\date{2006. augusztus 2.}
 \begin{document}
   \maketitle
   \mktoc
@@ -327,7 +327,7 @@
     cn: Manager}
 
   A Manager-től független adminisztrátori jogokkal rendelkező bejegyzés. Nem kötelező, mégis jobb, ha szét vannak
-  választva a jogosultságok, akár több részre is. a \texttt{simpleSecurityObject} tartalmazza a \texttt{userPassword}
+  választva a jogosultságok, akár több részre is.\\ A \texttt{simpleSecurityObject} tartalmazza a \texttt{userPassword}
   tulajdonságot. A \texttt{description} mező pedig a leírás, melyet bármely objektum tartalmazhat.
   
   \ut{dn: cn=admin,dc=panthernet\\
@@ -555,6 +555,7 @@
 
   Megadható az is, hogy alapértelmezetten mivel legyen kitöltve a tanúsítvány, valamint hogy milyen kérdések
   szerepeljenek, csakúgy, mint az alapértelmezett kulcshosszt is. Ennek részlete:
+
   \ut{\begin{tabular}{ll}
       [\ req\ ]&\\
       default\_bits           &= 1024\\
@@ -699,7 +700,7 @@
   3-as verzió  a mostani. A \texttt{bind = no} a névtelen kapcsolódást teszi lehetővé (mint a /etc/ldap.conf-ban a
   hasonló beállítás).
 
-    
+  \newpage
   \section{Kerberos}
 
   Egy részletes leírás itt olvasható: http://cfhay.inf.elte.hu/kerberos/leiras.html
@@ -724,10 +725,13 @@
   akkor kapjuk meg, ha már egyszer bejelentkeztünk az imap szerverre. SSH szerver használata esetén pédául a
   \texttt{host/fenix.panthernet@PANTHERNET} jegyet kapjuk meg.
 
+  Ebben a dokumentumban a \emph{mit-krb5} változatról lesz szó, viszont létezik másik implementáció is, a \emph{heimdal}.
+
+  A jegyet nevezhetjük kulcsnak is, és akkor kulcskiosztó szerverünk van (KDC).
   \subsection{A kerberos beállítása}
   A legfontosabb beállásokat a \texttt{/etc/krb5.conf} tartalmazza.
   
-  \subsubsection{/etc/krb5.conf}
+  \subsubsection{/etc/krb5.conf illetve DNS bejegyzések}
   A fájlt mindenki olvashatja. Nálam ezek a beállítások vannak:
 
   \ut{[libdefaults]\\
@@ -736,8 +740,8 @@
     \hspace*{2cm}forwardable = true\newline\newline
 	    [realms]\\
 	    \hspace*{2cm}PANTHERNET = \{\\
-	          \hspace*{2cm}kdc = 10.0.1.101:88\\
-	          \hspace*{2cm}admin\_server = 10.0.1.101:749\\
+	          \hspace*{2cm}kdc = 10.0.0.2:88\\
+	          \hspace*{2cm}admin\_server = 10.0.0.2:749\\
 	          \hspace*{2cm}\}\newline\newline
 			  [domain\_realm]\\
 			  \hspace*{2cm}.panthernet = PANTHERNET\\
@@ -753,9 +757,492 @@
   mindig kiírni, melyik realmról van szó. Az utolsó pedig azt jelzi, hogy a kapott jegyek továbbíthatók más szerverekre
   (például ssh-n keresztül).
   
+  Amennyiben a kerberos szerver másik gépen van (nálam ugyanaz), akkor szükség van még egy beállításra a fenti hármon
+  felül. Ez mondja meg, hogy hány másodperccel térhet el a kerberos szerver és az aktuális gép rendszerórája. A név a
+  \texttt{clockskew}, alapértelmezett értéke 300 (5 perc). Többit lásd \texttt{man 5 krb5.conf}.
   
- 
+  A következő szakasz azt mondja meg, hogy hol keresse a kerberos szervereket egy adott realmhoz. Jelen esetben a kdc is
+  és az kadmin szerver is a gépemen van, a 88-as illetve 749-es porton. Próbáltam localhost-ot megadni, de az nem
+  működött rendesen. Ugyanitt megadható több további realm is. Ha így nem szerepel, akkor még van egy lehetőség, hogy az
+  adott realm nevének megfelelő dns bejegyzéseket keres.
+
+  Tegyük fel, hogy két kerberos szerverünk van, kdc1 és kdc2. Ekkor a DNS bejegyzések a következők lesznek:
+
+  \ut{\_kerberos.\_udp   IN SRV 1 0 88 kdc1\\
+    \_kerberos.\_tcp   IN SRV 1 0 88 kdc1\\
+    \_kerberos.\_udp   IN SRV 10 0 88 kdc2\\
+    \_kerberos.\_tcp   IN SRV 10 0 88 kdc2\\
+    \_kerberos-adm.\_tcp IN SRV 1 0 749 kdc1\\
+    \_kpasswd.\_udp   IN SRV 1 0 464 kdc1\\
+    \_kerberos IN TXT "EXAMPLE.COM"
+  }
+
+  Itt a gépnevek végén nincsen pont, ezért a tartományon belül szerepelnek, pl. a gépem esetén így egészülne ki:\\
+  \ut{\_kerberos.udp.panthernet. IN SRV 1 0 88 kdc1.panthernet.}
+
+  A kdc1 az elsődleges kerberos kiszolgáló, ezért az SRV bejegyzés után álló számot kisebbre kell állítani (1 versus
+  10). A 88 a kdc standard (krb5-ös) portja (tcp + udp), 749 pedig a kadmin szerveré. A jelszóváltoztatást is és a realm
+  felügyeletét is a kdc1-en keresztül lehet megtenni.
+
+  A krb5.conf fájl következő szakasza a \texttt{[domain\_realm]}, amely azt adja meg, melyik géphez melyik realm
+  tartozik. Itt lehet tartomány is, ilyenkor ponttal kezdődik, és lehet konkrét gép is. Erre példa a
+  \texttt{.panthernet} és a \texttt{localhost}. Mindkettőhoz a \texttt{PANTHERNET} realm tartozik.
+
+  Ha így nem található meg egy géphez tartozó realm, akkor a rendszer levágja a domain nevet, pl. foo.example.com esetén
+  ez az example.com, és megnézi, hogy a domain névhez milyen TXT bejegyzés tartozik. A fenti példában az
+  EXAMPLE.COM. Továbbá megnézi a fent megadott \_kerberos.* bejegyzéseket is, amely révén megtalálja a géphez tartozó
+  kerberos kiszolgálót.
 
   
+  \subsubsection{A realm létrehozása}
+  A(z elsődleges) KDC-n a \texttt{kadmin.local} programmal lehet adminisztrálni a realmot. Ha ezt még nem hoztuk létre,
+  akkor ilyen hibaüzenetet kapunk:
+  
+  \ut{\# kadmin.local\\
+  Authenticating as principal root/admin@PANTHERNET with password.\\
+  kadmin.local: No such file or directory while initializing kadmin.local interface}
+
+  \newpage
+  Hozzuk létre (PANTHERNET helyére értelemszerűen mást írva):
+  
+  \ut{\# kdb5\_util create -s -r  PANTHERNET\\
+    Loading random data\\
+    Initializing database '/etc/krb5kdc/principal' for realm 'PANTHERNET',\\
+    master key name 'K/M@PANTHERNET'\\
+    You will be prompted for the database Master Password.\\
+    It is important that you NOT FORGET this password.\\
+    Enter KDC database master key:\\
+    Re-enter KDC database master key to verify:
+  }
+  
+  A realm adatbázisa (fájlja) a következő: \texttt{/etc/krb5kdc/principal}. A fájlt jelszó védi, amit érdemes felírni és
+  jól elzárt helyen tárolni. Enélkül könnyen visszaélhet valaki a jogosultságokkal. Ha nem ismert a jelszó, akkor nem
+  lesz mindenre jogunk (nekem helyi gépen nem sikerült helyzetet produkálni, talán csak szerencsém volt).
+  
+  A legfontosabb bejegyzés a \texttt{K/M@PANTHERNET}, ezt TILOS kiexportálni, mert ennek ismeretében bármilyen
+  változtatást megtehet a szerveren az, aki csak akar...
+
+  Ha meg kell adni a mesterjelszót a \texttt{kadmin.local}-nak, akkor azt a parancs után megadott \texttt{-m} opcióval
+  tehetjük meg. A program indulás után bekéri a jelszót.
+
+  \subsection{A kerberos bejegyzések létrehozása és listázása}
+  A \texttt{kadmin.local} kliens programot elindítva elkedhetjük a felhasználókat és a szolgáltatásokat megadni. Első lépésben
+  házirendeket (policy) érdemes létrehozni, amelynek most különösebb szerepe nincsen, viszont bármikor szükséges lehet a
+  szabályok szigorítása, és így általánosan kezelhetjük a felhasználókat.
+  
+  A kliensben van segítség is, mely a \texttt{help} parancs hatására jön elő, illetve egy nem teljesen megadott parancs
+  is kiírja paraméterezését. A parancsoknak van hosszabb és rövidebb formájuk is.
+
+  \ut{\# kadmin.local\\
+    Authenticating as principal root/admin@PANTHERNET with password.
+    kadmin.local:  \emph{\textbf{addpol}}\\
+    add\_policy: parser lost count!\\
+    usage; add\_policy [options] policy\\
+    \hspace*{1.5cm}options are:\\
+    \hspace*{3cm}[-maxlife time] [-minlife time] [-minlength length]\\
+    \hspace*{3cm}[-minclasses number] [-history number]\\
+    kadmin.local: \emph{\textbf{addpol users}}\\
+    kadmin.local: \emph{\textbf{addpol admin}}\\
+    kadmin.local: \emph{\textbf{addpol hosts}}
+    }
+  
+  A fenti 3 házirenddel szétválaszthatjuk a jogosultságok szerint az ún. \emph{pricipal}-okat (a létrehozott
+  bejegyzéseket).
+
+  Az enyémet (normál ill. admin változatban) így lehet hozzáadni (a parancs 2 alakját használva a 3-ból):
+  
+  \ut{kadmin.local: \emph{\textbf{ank -policy users panther}}\\
+    Enter password for principal "panther@PANTHERNET":\\
+    Re-enter password for principal "panther@PANTHERNET":\\
+    Principal "panther@PANTHERNET" created.\\
+    kadmin.local: \emph{\textbf{addprinc -policy admin panther/admin}}\\
+    Enter password for principal "panther/admin@PANTHERNET":\\
+    Re-enter password for principal "panther/admin@PANTHERNET":\\
+    Principal "panther/admin@PANTHERNET" created.
+  }
+  
+  
+  Ha ki szeretnénk listázni az összeset, akkor a következőképp járjunk el (és ilyesmilyen kimenetet kapunk):
+
+  \ut{kadmin.local: \emph{\textbf{listprincs}}\\
+    K/M@PANTHERNET\\
+    \ldots\\
+    panther/admin@PANTHERNET
+  }
+  
+  Normál felhasználóként indítva más promptot kapunk és másképp kell indítani:
+
+  \ut{panther ~ \$ /usr/sbin/kadmin
+    Couldn't open log file /var/log/kadmin.log: Permission denied\\
+    Couldn't open log file /var/log/kadmin.log: Permission denied\\
+    Authenticating as principal panther/admin@PANTHERNET with password.\\
+    Password for panther/admin@PANTHERNET:\\
+    kadmin:}
+  
+  Az első két sor elfogadható, hiszen csak a rootnak szabad írnia a log fájlokat. Utána kiírja, hogy a felhasználói fiók
+  admin változatával próbál csatlakozni, ehhez bekéri a jelszót.
+  
+  Ekkor sajnos még nincs jogunk listázni sem a principal-okat.
+  
+  A kdc-t tartalmazó géphez tartozó principal hozzáadása:
+  
+  \ut{kadmin.local:  \emph{\textbf{addprinc -randkey -policy hosts host/zeratul.panthernet}}\\
+    Principal "host/zeratul.panthernet@PANTHERNET" created.\\
+    kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5.keytab host/zeratul.panthernet}}\\
+    Entry for principal host/zeratul.panthernet with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to
+    keytab WRFILE:/etc/krb5.keytab.\\    
+    Entry for principal host/zeratul.panthernet with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab
+    WRFILE:/etc/krb5.keytab.
+    }
+  
+  Most nem kell jelszó, ezért egy véletlen kulcsot generál a program a \texttt{-randkey} opció hatására. Mivel a
+  kiszolgáló nem adhat meg jelszót, ezért jelszava például a \texttt{/etc/krb5.keytab} fájlban tárolódik, vagy másban, a
+  lényeg, hogy csak a kiszolgáló felhasználója tudja olvasni. Itt most ebbe a fájlba került.
+  
+
+  \subsubsection{A KDC beállítása}
+  A  KDC beállítófájlja, amin nem nagyon kell változtatni (/etc/kdc.conf):
+
+  \ut{[kdcdefaults]\\
+    kdc\_ports = 88,750\newline\newline
+    [realms]\\
+        PANTHERNET = \{\\
+        database\_name = /etc/krb5kdc/principal\\
+        admin\_keytab = /etc/krb5kdc/kadm5.keytab\\
+        acl\_file = /etc/krb5kdc/kadm5.acl\\
+        dict\_file = /etc/krb5kdc/kadm5.dict\\
+        key\_stash\_file = /etc/krb5kdc/.k5.PANTHERNET\\
+        kadmind\_port = 749\\
+        max\_life = 10h 0m 0s\\
+        max\_renewable\_life = 7d 0h 0m 0s\\
+        master\_key\_type = des3-hmac-sha1\\
+        supported\_enctypes = des3-hmac-sha1:normal des-cbc-crc:normal\\
+        \}}
+
+  Egy KDC több realmot is kiszolgálhat. Amennyiben automatikusan szeretnénk elindítani, a mester jelszó megadása
+  nélkül, akkor a \texttt{key\_stash\_file} opcióban megadott fájlra szükségünk van, ellenkező esetben töröljük le. Az
+  automatikus indítás a biztonság rovására megy, mert a fájl megszerzésével vissza lehet élni.
+  
+  A \texttt{/etc/krb5kdc/kadm5.acl} fájl tartalmazza a jogosultságokat, jelen esetben:
+
+  \ut{*/admin@PANTHERNET      *}
+  
+  vagyis az összes adminnak mindenhez van joga.
+  
+  A \texttt{/etc/krb5kdc/kadm5.keytab} az admin keytab (kulcsokat tartalmazó fájl), ide két principal-t kell betenni:
+  
+  \ut{kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5kdc/kadm5.keytab kadmin/admin kadmin/changepw}}\\
+    Entry for principal kadmin/admin with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
+    Entry for principal kadmin/admin with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
+    Entry for principal kadmin/changepw with kvno 4, encryption type Triple DES cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
+    Entry for principal kadmin/changepw with kvno 4, encryption type DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
+  }
+
+  \subsection{Szolgáltatások hozzáadása}
+  Tegyük fel, hogy a cyrus szervert szeretnénk beüzemelni. Neki külön keytab fájl kell, ezt a következőképpen tehetjük
+  meg (kadmin vagy kadmin.local is jó):
+  
+  \ut{admin.local:  \emph{\textbf{addprinc -randkey -policy hosts imap/zeratul.panthernet}}\\
+    Principal "imap/zeratul.panthernet@PANTHERNET" created.\\
+    kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5.keytab.cyrus imap/zeratul.panthernet}}\\
+    Entry for principal imap/zeratul.panthernet with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to
+    keytab WRFILE:/etc/krb5.keytab.cyrus.\\    
+    Entry for principal imap/zeratul.panthernet with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab
+    WRFILE:/etc/krb5.keytab.cyrus.\\    
+  }
+
+  Bármely további szolgáltatást hasonlóképpen, \emph{szolgáltatásnév/szervernév}  formában megadhatunk. Itt a
+  /etc/krb5.keytab.cyrus fájl a cyrus tulajdonában lévő, csak általa olvasható (és esetleg írható) fájl.
+
+
+  \subsection{Jegyek igénylése, kezelése}
+  Általában bejelentkezéskor kapunk egy jegyet, ahogy fentebb elhangzott, a \emph{tgt}-t, azonban néha szükség lehet
+  arra, hogy menet közben ezt eldobjuk, vagy éppen másik realmból szeretnénk jegyet kapni.
+
+  Például bejelentkeztem az \texttt{INF.ELTE.HU} tartományba, és a host ticketeknek megfelelően a 3 gépre:
+  
+  \ut{\$ klist\\
+    Ticket cache: FILE:/tmp/krb5cc\_1000\\
+    Default principal: panther@INF.ELTE.HU\\
+    \\
+    Valid starting\ \ \ \ \ Expires\ \ \ \ \ \ \ \ \ \ \ \ Service principal\\
+    07/30/06 23:59:19\  07/31/06 09:59:30\ \ krbtgt/INF.ELTE.HU@INF.ELTE.HU\\
+    \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19\\
+    07/30/06 23:59:54\ \ 07/31/06 09:59:30\ \ host/valerie.inf.elte.hu@INF\ldots\\
+    \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19\\
+    07/30/06 23:59:54\ \ 07/31/06 09:59:30\ \ host/panda.inf.elte.hu@INF\ldots\\
+    \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19\\
+    07/30/06 23:59:54\ \ 07/31/06 09:59:30\ \ host/pandora.inf.elte.hu@INF\ldots\\
+    \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19
+  }
+  
+  Itt a jegy a \texttt{/tmp/krb5cc\_1000} fájlban van, amelyben az alapértelmezett (principal) a
+  \texttt{panther@INF.ELTE.HU}.
+  
+  Ennek eldobása:
+  
+  \ut{kdestroy}
+  
+  Ha nincsen ``default principal'', akkor a \texttt{/etc/krb5.conf} alapértelmezett realm-ját veszi alapul, ellenkező
+  esetben a principalt újítja meg:
+  
+  \ut{\$ kinit\\
+  Password for panther@INF.ELTE.HU: }
+  
+  A \texttt{kinit} egyik legfontosabb opciója a \texttt{-f} és a \texttt{-F}, az előbbivel lehet \emph{továbbítható
+  (forwardable)} jegyet igényelni, utóbbi pedig letiltja ezt. Ha továbbítható a jegy, akkor jelszókérés nélkül be lehet
+  jelentkezni másik gépre is, ugyanis a jegy azonosít minket.
+
+  
+  \subsection{A pam beállítása}
+  Ahhoz, hogy bejelentkezéskor a kerberosban tárolt jelszavunkat használjuk, be kell állítani a PAM-ban a kerberos
+  használatát.
+  
+  A PAM a ``Pluggable Authentication Modules for Linux'' rövidítése, olyan hitelesítő modulokból áll, amelyek szabadon
+  cserélhetőek. A változtatások azonnal érvénybe lépnek, a PAM-ot használó alkalmazás újraindítása nélkül is. A
+  beállításokat a \texttt{/etc/pam.d} könyvtár tartalmazza.
+  
+  A Gentoo Linuxon az általánosan használt rész egy külön fájlban,\\ a \texttt{/etc/pam.d/system-auth}-ban van:
+
+  \ut{\begin{tabular}{llll}%{\hspace{0.4cm}l\hspace{0.4cm}l\hspace{0.4cm}l\hspace{0.2cm}l}
+    auth      & required    & pam\_env.so&\\
+    auth      & sufficient  & pam\_unix.so &likeauth nullok\\
+    auth      & sufficient  & pam\_krb5.so &use\_first\_pass forwardable\\
+    auth      & required    & pam\_deny.so&\\\\
+    account   & required    & pam\_unix.so&\\\\
+    password  & required    & pam\_cracklib.so &difok=2 minlen=8 dcredit=2\textbackslash\\
+    &&&\hspace*{1cm}ocredit=2 retry=3\\
+    password  & sufficient &  pam\_unix.so& nullok md5 shadow use\_authtok\\
+    password  & sufficient &  pam\_krb5.so &use\_first\_pass\\
+    password  & required   &  pam\_deny.so&\\\\
+    session   & required  &   pam\_limits.so&\\
+    session    &sufficient &  pam\_unix.so&\\
+    session    &sufficient  & pam\_krb5.so&\\
+    session    &required    & pam\_deny.so&\\
+    session    &required    &pam\_unix.so&
+    \end{tabular}
+    }
+  
+  Ez egy tipikusan hibás fájl, ami viszont jól szerepel benne: a \texttt{pam\_krb5}-öt ugyanúgy kell kezelni, mint a
+  \texttt{pam\_unix}-ot. Az előbbi az első jelszót használja, ha nem sikerülne a \texttt{pam\_unix} jelszóellenőrzése,
+  valamint továbbítható jegyet kér.
+
+  Hogyan lehet használni a fenti fájlt? Például így:
+  
+  \ut{\begin{tabular}{lll}
+      auth      & required    & pam\_nologin.so\\
+      auth      & include     & system-auth\\
+      account   & include     & system-auth\\
+      session   & include     & system-auth
+    \end{tabular}
+  }
+  
+  \newpage
+  \section{Cyrus (IMAP)}
+  A Cyrus IMAP szerverhez fel kell tenni a következő csomagokat (a SASL-ra legfőképpen későbbb lesz szükség).
+
+  \ut{dev-libs/cyrus-sasl\\
+     net-mail/cyrus-imap-admin\\
+     net-mail/cyrus-imapd\\
+  }
+
+   Korábban már láttuk, hogyan lehet az \texttt{imap/zeratul.panthernet@PANTHERNET} principal-t hozzáadni a rendszerhez,
+   a továbbiakban szükség lesz rá. Tegyük fel, hogy \textt{kinit}-tel már azonosítottuk magunkat. Ekkor kipróbálhatjuk a
+   már elindított imap szervert:
+   
+   \ut{\$ \emph{\textbf{imtest -m  GSSAPI -u panther  zeratul.panthernet}}\\
+     S: * OK zeratul Cyrus IMAP4 v2.2.12-Gentoo server ready\\
+     C: C01 CAPABILITY\\
+     S: * CAPABILITY IMAP4 IMAP4rev1 ACL QUOTA LITERAL+ MAILBOX-REFERRALS NAMESPACE UIDPLUS ID NO\_ATOMIC\_RENAME UNSELECT CHILDREN MULTIAPPEND BINARY SORT THREAD=ORDEREDSUBJECT
+     THREAD=REFERENCES ANNOTATEMORE IDLE STARTTLS LOGINDISABLED AUTH=GSSAPI SASL-IR LISTEXT LIST-SUBSCRIBED X-NETSCAPE\\
+     S: C01 OK Completed
+     }
+   
+   \noindent Hogyha nem menne, akkor a \texttt{/etc/cyrus.conf} fájlt kell módosítani:
+   
+   \ut{SERVICES \{\\
+     \# Add or remove based on preferences.\\
+     imap          cmd="imapd" listen="imap2" prefork=0\\
+     pop3          cmd="pop3d" listen="pop-3" prefork=0\\
+     \\
+     \# Don't forget to generate the needed keys for SSL or TLS\\
+     \# (see doc/html/install-configure.html).\\
+     imaps         cmd="imapd -s" listen="imaps" prefork=0\\
+     \#pop3s                cmd="pop3d -s" listen="pop3s" prefork=0\\
+     \\
+     sieve         cmd="timsieved" listen="sieve" prefork=0\\
+     \\
+     \# at least one LMTP is required for delivery\\
+     \#lmtp         cmd="lmtpd" listen="lmtp" prefork=0\\
+     lmtpunix      cmd="lmtpd" listen="/var/imap/socket/lmtp" prefork=0\\
+     \\
+     \# this is only necessary if using notifications\\
+     \#notify       cmd="notifyd" listen="/var/imap/socket/notify" proto="udp" prefork=1
+     \}
+   }
+   
+   \noindent Ennek megfelelően a postfix beállítása:
+   
+   \ut{mailbox\_transport = lmtp:unix:/var/imap/socket/lmtp}
+
+   \noindent Itt az imap, pop3, imaps portok engedélyezettek, utóbbihoz szükség van egy CA által aláírt tanúsítványra is
+   
+   \ut{\#/etc/imapd.conf részlet\\
+     tls\_ca\_file:            /etc/ssl/panthernet.ca.crt\\
+     tls\_cert\_file:          /etc/ssl/cyrus/server.crt\\
+     tls\_key\_file:           /etc/ssl/cyrus/server.key\\
+   }
+   
+   \noindent A fenti beállítások mellett előjött az a hiba, hogy a \texttt{saslauthd} nem futott, valamint a postfixnak
+   nem volt joga a cyrus unix foglalatához:
+
+   \ut{Oct 30 09:51:12 zeratul imaps[9961]: starttls: SSLv3 with cipher AES256-SHA (256/256 bits reused) no authentication\\
+     Oct 30 09:51:19 zeratul imaps[9961]: cannot connect to saslauthd server: No such file or directory\\
+     Oct 30 09:51:19 zeratul imaps[9961]: badlogin: zeratul.panthernet [10.0.1.101] plaintext panther SASL(-1): generic
+     failure: checkpass failed\\\\
+     Oct 30 09:52:51 zeratul postfix/pickup[9204]: AE99D79BB78E: uid=1000 from=<panther>
+     Oct 30 09:52:51 zeratul postfix/cleanup[10026]: AE99D79BB78E: message-id=<20051030085251.AE99D79BB78E@zeratul.panthernet>
+     Oct 30 09:52:51 zeratul postfix/qmgr[9205]: AE99D79BB78E: from=<panther@zeratul.panthernet>, size=488, nrcpt=1 (queue active)\\
+     Oct 30 09:52:51 zeratul postfix/lmtp[10029]: AE99D79BB78E: to=<panther@zeratul.panthernet>, orig\_to=<panther>,\\
+     relay=none, delay=0, status=deferred (connect to /var/imap/socket/lmtp[/var/imap/socket/lmtp]: Permission denied)\\
+   }
+   
+
+   
+   \noindent A Cyrus imap fájlját a következő módon tettem elérhetővé a postfix számára:
+   
+   \ut{zeratul socket \# setfacl -m u:postfix:x ..\\
+     zeratul socket \# setfacl -m u:postfix:x .\\
+     zeratul socket \# setfacl -m u:postfix:rw lmtp\\
+     zeratul socket \# l\\
+     összesen 12\\
+     drwxr-x---+~~2 cyrus mail~~~88 okt 30 09:58 ./\\
+     drwxr-x---+~12 cyrus mail 4096 okt 30 09:51 ../\\
+     -rw-------~~~1 cyrus mail~~~~0 okt 29 23:18 imap-1.lock\\
+     -rw-------~~~1 cyrus mail~~~~ 0 okt 30 09:25 imaps-1.lock\\
+     -rw-r--r--~~~1 root~~root~~~~0 okt 29 23:09 .keep\\
+     srwxrwxrwx+~~1 cyrus mail~~~~0 okt 30 09:51 lmtp=
+   }
+
+   \newpage
+   \section{Amavisd-New, ClamAV, SpamAssassin}
+   Az Amavisd-new egy általános célú levélszűrő, spam- és vírusszűrő programokat hív meg és az általuk adott válasz
+   alapján eldönti, hogy az adott levél spam-e, vagy épp vírusos-e.
+
+   Egy minimális konfiguráció (amit be kell állítani) a következő:
+   
+   \ut{\# /etc/amavisd.conf\\
+     \$mydomain = 'panthernet';\\
+     \$myhostname = 'zeratul.panthernet';\\
+     \$daemon_user  = 'amavis';       # (no default;  customary: vscan or amavis)\\
+     \$daemon_group = 'clamav';       # (no default;  customary: vscan or amavis)
+     \$virus_admin = "panther@\$mydomain";
+     \$mail_notify_admin = "antivirus@\$mydomain";
+     \$mail_notify_spamadmin = "antivirus@\$mydomain";
+     \# \#\#\# http://www.clamav.net/
+	['ClamAV-clamd',
+	  \textbackslash\&ask_daemon, ["CONTSCAN \{\}\textbackslash n", "/var/run/clamav/clamd.sock"],
+	  qr/\textbackslash bOK\$/, qr/\textbackslash bFOUND\$/,\ldots]
+   }
+   
+   Az amavisnak a clamav-vel azonos csoportban kell lennie, hogy olvashassa a clamav socket fájlját, a
+   \texttt{/var/run/clamav/clamd.sock}-t.
+   A \texttt{mail_notify*} a levelek feladója, ha értesítést küld a rendszer, hogy spamet vagy mást talált.
+   
+
+   Illetve be kell állítani, hogy a könyvtár (\texttt{/var/amavis}) megfelelő tulajdonú legyen:
+
+   \ut{\# chown -R amavis:amavis /var/amavis}
+   
+   \subsection{A ClamAV beállítása}
+   A ClamAV alapértelmezett konfigja csak példa, ezért egy hashmark (\#) karaktert kell az ``Example'' sor elé tenni:
+
+   \ut{\# Example
+     LogFile /var/log/clamav/clamd.log
+     LocalSocket /var/run/clamav/clamd.sock
+   }
+   
+   A \textt{LocalSocket} ugyanaz legyen, mint ami az \texttt{/etc/amavisd.conf}-ban szerepel. Ha ez megvan, már
+   működőképes a rendszer.
+
+   \subsection{A Postfix beállítása az Amavisd-New használatára}
+
+   A \texttt{/etc/postfix/master.cf} fájlban kell módosítani, az első három sor talán nem kell...
+   
+   \ut{# submission=587\\
+     submission   inet    n       -       n       -       -       smtpd\\
+     -o smtpd\_enforce\_tls=yes -o smtpd\_sasl\_auth\_enable=yes -o smtpd\_etrn\_restrictions=reject\\
+     \#\#\#\\
+     \# AMAVIS etc
+     127.0.0.1:10025 inet n  -       n       -       -       smtpd\\
+     -o content\_filter=\\
+     -o local\_recipient\_maps=\\
+     -o smtpd\_client\_restrictions=\\
+     -o smtpd\_helo\_restrictions=\\
+     -o smtpd\_sender\_restrictions=\\
+     -o smtpd\_restrictions=permit\_mynetworks,reject\_unauth\_destination\\
+     -o mynetworks=127.0.0.0/8\\
+     -o strict\_rfc821\_envelopes=yes\\
+     -o smtpd\_error\_sleep\_time=0\\
+     -o smtpd\_soft\_error\_limit=1001\\
+     -o smtpd\_hard\_error\_limit=1000\\
+     smtp-amavis     unix    -       -       y       -       2       smtp\\
+     -o smtp\_data\_done\_timeout=1200\\
+     -o disable\_dns\_lookups=yes}
+
+   \noindent A \texttt{/etc/postfix/master.cf} fájlban is kell egy új sor:
+
+   \ut{content\_filter = smtp-amavis:[127.0.0.1]:10024}
+
+   Mi is történik ekkor? A Postfix kap egy levelet a 25-ös porton. Ezt továbbadja a localhost 10024-es portjára az
+   amavisd-new-nak. Az amavisd-new meghívja a spam- és vírusszűrőket, majd visszaküldi a levelet a postfixnak a
+   localhost 10025-ös portján. Bizonyos feltételek mellett bármikor blokkolódhat a levél. Ha az amavis karanténba zárja,
+   akkor értesítést küld, alapesetben a localhost 10025-ös portjára.
+
+   
+   \newpage
+   \section{SSL, OpenLDAP, SASL beállítása}
+   Az OpenLDAP is támogatja a Kerberost, ehhez neki is meg kell adni egy keytab fájlt. A szolgáltatásnév
+   \texttt{ldap/gepnev}. Például:
+
+   \ut{kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5.keytab.ldap ldap/zeratul.panthernet}}\\
+     Entry for principal ldap/zeratul.panthernet with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5.keytab.ldap.\\
+     Entry for principal ldap/zeratul.panthernet with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab
+     WRFILE:/etc/krb5.keytab.ldap.}
+
+   \noindent A \texttt{/etc/openldap/slapd.conf} fájlt be kell állítani a SASL (GSSAPI) használatára:
+   
+   \ut{sasl-realm panthernet\\
+     sasl-regexp uid=([^,]+),.*cn=GSSAPI uid=\$1,ou=People,dc=panthernet\\
+     sasl-host zeratul.panthernet
+   }
+
+   \noindent Az init scriptben meg kell adni, hol van a keytab fájl, még a slapd indulása előtt:
+
+   \ut{export KRB5_KTNAME=/etc/krb5.keytab.ldap}
+
+   \noindent Kerberos ticket nélkül:
+   
+   \ut{panther@zeratul ~ \$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}\\
+     SASL/GSSAPI authentication started\\
+     ldap_sasl_interactive_bind_s: Local error (-2)\\
+     additional info: SASL(-1): generic failure: GSSAPI Error: Miscellaneous failure (No credentials cache found)\\
+     panther@zeratul ~ \$ \emph{\textbf{ldapsearch   uid=panther}}\\
+     ldap_sasl_interactive_bind_s: No such object (32)
+   }
+   
+
+   Azzal együtt már működik:
+   \ut{\$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}}
+
+   
+   
+
+%%   exim -qff
+%% exim_tidydb -t 7d -f /var/spool/exim wait-amavis 
+%% exim_tidydb -t 7d -f /var/spool/exim wait-remote_smtp
+%% exim_tidydb -t 7d -f /var/spool/exim retry
+%% exim -bpru | egrep ^.[78]d | awk '{print $3}' | wc -l | xargs exim -Mrm
+
   
 \end{document}
