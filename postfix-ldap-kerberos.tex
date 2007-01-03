@@ -1134,20 +1134,20 @@
    \ut{\# /etc/amavisd.conf\\
      \$mydomain = 'panthernet';\\
      \$myhostname = 'zeratul.panthernet';\\
-     \$daemon_user  = 'amavis';       # (no default;  customary: vscan or amavis)\\
-     \$daemon_group = 'clamav';       # (no default;  customary: vscan or amavis)
-     \$virus_admin = "panther@\$mydomain";
-     \$mail_notify_admin = "antivirus@\$mydomain";
-     \$mail_notify_spamadmin = "antivirus@\$mydomain";
-     \# \#\#\# http://www.clamav.net/
-	['ClamAV-clamd',
-	  \textbackslash\&ask_daemon, ["CONTSCAN \{\}\textbackslash n", "/var/run/clamav/clamd.sock"],
-	  qr/\textbackslash bOK\$/, qr/\textbackslash bFOUND\$/,\ldots]
+     \$daemon\_user  = 'amavis';       \# (no default;  customary: vscan or amavis)\\
+     \$daemon\_group = 'clamav';       \# (no default;  customary: vscan or amavis)\\
+     \$virus\_admin = "panther@\$mydomain";\\\
+     \$mail\_notify\_admin = "antivirus@\$mydomain";\\
+     \$mail\_notify\_spamadmin = "antivirus@\$mydomain";\\
+      \# \#\#\# http://www.clamav.net/\\
+%%	 ['ClamAV-clamd',\\
+%% 	  \textbackslash\&ask\_daemon, ["CONTSCAN \{\}\textbackslash n", "/var/run/clamav/clamd.sock"],\\
+%%	  qr/\textbackslash bOK\$/, qr/\textbackslash bFOUND\$/,\ldots\
    }
    
    Az amavisnak a clamav-vel azonos csoportban kell lennie, hogy olvashassa a clamav socket fájlját, a
    \texttt{/var/run/clamav/clamd.sock}-t.
-   A \texttt{mail_notify*} a levelek feladója, ha értesítést küld a rendszer, hogy spamet vagy mást talált.
+   A \texttt{mail\_notify*} a levelek feladója, ha értesítést küld a rendszer, hogy spamet vagy mást talált.
    
 
    Illetve be kell állítani, hogy a könyvtár (\texttt{/var/amavis}) megfelelő tulajdonú legyen:
@@ -1169,7 +1169,7 @@
 
    A \texttt{/etc/postfix/master.cf} fájlban kell módosítani, az első három sor talán nem kell...
    
-   \ut{# submission=587\\
+   \ut{\# submission=587\\
      submission   inet    n       -       n       -       -       smtpd\\
      -o smtpd\_enforce\_tls=yes -o smtpd\_sasl\_auth\_enable=yes -o smtpd\_etrn\_restrictions=reject\\
      \#\#\#\\
@@ -1188,7 +1188,8 @@
      -o smtpd\_hard\_error\_limit=1000\\
      smtp-amavis     unix    -       -       y       -       2       smtp\\
      -o smtp\_data\_done\_timeout=1200\\
-     -o disable\_dns\_lookups=yes}
+     -o disable\_dns\_lookups=yes
+   }
 
    \noindent A \texttt{/etc/postfix/master.cf} fájlban is kell egy új sor:
 
@@ -1213,22 +1214,22 @@
    \noindent A \texttt{/etc/openldap/slapd.conf} fájlt be kell állítani a SASL (GSSAPI) használatára:
    
    \ut{sasl-realm panthernet\\
-     sasl-regexp uid=([^,]+),.*cn=GSSAPI uid=\$1,ou=People,dc=panthernet\\
+     sasl-regexp uid=([\^,]+),.*cn=GSSAPI uid=\$1,ou=People,dc=panthernet\\
      sasl-host zeratul.panthernet
    }
 
    \noindent Az init scriptben meg kell adni, hol van a keytab fájl, még a slapd indulása előtt:
 
-   \ut{export KRB5_KTNAME=/etc/krb5.keytab.ldap}
+   \ut{export KRB5\_KTNAME=/etc/krb5.keytab.ldap}
 
    \noindent Kerberos ticket nélkül:
    
    \ut{panther@zeratul ~ \$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}\\
      SASL/GSSAPI authentication started\\
-     ldap_sasl_interactive_bind_s: Local error (-2)\\
+     ldap\_sasl\_interactive\_bind\_s: Local error (-2)\\
      additional info: SASL(-1): generic failure: GSSAPI Error: Miscellaneous failure (No credentials cache found)\\
      panther@zeratul ~ \$ \emph{\textbf{ldapsearch   uid=panther}}\\
-     ldap_sasl_interactive_bind_s: No such object (32)
+     ldap\_sasl\_interactive\_bind\_s: No such object (32)
    }
    
 
@@ -1236,7 +1237,25 @@
    \ut{\$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}}
 
    
+   \section{Levelezőkliensek beállítása}
+   \subsection{Mutt}
+   A mutt rendszerszintű beállítófájljában, a \texttt{/etc/mutt/Muttrc}-ben a következőket állítjuk be:
+  
+   \ut{set certificate\_file="/etc/openldap/ssl/cacert.pem"\\
+     set move=no
+     set hostname=panthernet\\
+     set ssl\_starttls=yes\\
+     set folder=\$MAIL
+   }
+
+   Az első a CA tanúsítványát jelöli, a 3. azért kell, hogy ne a gépnév.domain alakú email cím legyen, ha elküld a
+   rendszer egy levelet, a 4. az SSL/TLS titkosítást állítja be, végül az utolsó az IMAP könyvtár helye (INBOX), ami egy
+   környezeti változó:
+
+   \ut{export MAIL=\{\$USER@zeratul.panthernet\}INBOX}
    
+
+     
 
 %%   exim -qff
 %% exim_tidydb -t 7d -f /var/spool/exim wait-amavis 
