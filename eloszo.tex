@@ -1,0 +1,56 @@
+\section{Előszó}
+A számítógépek és az Internet elterjedésével egyre több helyen épülnek ki sokfelhasználós, számos szolgáltatást nyújtó
+rendszerek. A legtipikusabb szolgáltatások a bejelentkezést és a levelezést teszik lehetővé.
+
+Kezdetben a felhasználók hitelesítésére elegendő volt egy egyszerű szövegfájl, amely tartalmazta a felhasználó
+adatait, valamint a jelszavát is. Mindenkinek joga volt olvasni ezt a fájlt, a jelszavak tárolása ezáltal már nem volt
+biztonságos. Ezért a jelszavakat már külön állományban tárolták, amit a gépen egyetlen felhasználó, a root tudott
+olvasni, valamint írni.
+
+A biztonsági problémát sikerült elhárítani, azonban két további probléma váltazatlanul fennált, az egyik az, hogy
+néhány ezer vagy különösen több tízezer felhasználó esetén kezelhetetlenné vált mind módosítás mind keresés esetén. A
+másik akkor merült fel, ha egyazon felhasználónak több gépre is van bejelentkezési joga. Sokszor egy-egy központi
+szerveren létrehozzák a felhasználó fiókját, így számos egyéb gépen (például laborokban) azonos körülmények között
+folyhat a munka. A felhasználókat tároló fájlt minden gépre át kellene másolni, módosításokat követni, ami nagyon
+nehézkes. Ugyanaz a helyzet, mint a gépek azonosításával alig néhány évtizeddel ezelőtt, amikor sok gép volt már, és
+az őket azonosító számokat, valamint a könnyebb megjegyezhetőség végett bevezetett beszédes neveket összekapcsoló
+állományokat körülményes volt karbantartani. Ezért bevezették a névkiszolgálók rendszerét, s csak egy-egy gépen kell a
+módosításokat elvégezni.
+
+A hitelesítésnél ugyanez a megoldás, egy központi gépen tárolható a felhasználó összes adata, jelszava. Többféle
+megoldás is szóba kerülhet, például adatbázisban (MySQL, Oracle, stb.), vagy épp egy hierarchikus
+rendszerben  (pl. LDAP) történő tárolás. Az LDAP protokoll egy könnyen kezelhető, gyors megoldás nyújt, ezt valósítja
+meg az OpenLDAP szerver, valamint a Microsoft Active Directory (AD) vezérlői is. 
+
+Az LDAP adatbázisban is tárolható lenne a jelszó, azonban nem túl biztonságos, ráadásul minden egyes szolgáltatás
+igénybevételekor be kellene írni a jelszót. Erre is létezik megoldás, a Kerberos használata, amit az MIT mit-krb5
+programja, valamint a Heimdal valósít meg a nyílt forráskódú rendszerek esetén, és a Microsoft AD is tartalmazza.
+
+Az LDAP és a Kerberos segítségével bejelentkezés után többet nem kell beírni a jelszót, azonnal be lehet bejelentkezni
+másik gépre is, valamint email-eket is el lehet olvasni. Erről is lesz szó a későbbiekben.
+
+Az LDAP és Kerberos alapú hitelesítést használó programok együttes használatát írtam le, valamint a hozzájuk
+kapcsolódó egyéb szolgáltatásokat is, amelyre példa a spam- és vírusszűrés.
+
+Az itt bemutatott rendszer GNU/Linux alapú, amelynek számos terjesztése (disztribúciója) létezik, a beállítások
+elsősorban a Gentoo Linux esetén néznek ki így, azonban a többi terjesztésen is hasonlóan oldható meg.
+
+A következő oldalakon az alábbi programok beállítása található meg:
+OpenLDAP,
+MIT-Krb5 (Kerberos),
+Tanúsítvány-kiszolgáló (Certificate Authority),
+PAM,
+Cyrus saslauthd,
+OpenSSH,
+Postfix,
+Amavisd-new,
+ClamAV,
+SpamAssassin,
+SSL/TLS titkosítás az előző programok esetén
+  
+A fenti programok beállításait lépésről lépésre nézzük át, hogy végül egy egységesen működő rendszert kapjunk.
+  
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:

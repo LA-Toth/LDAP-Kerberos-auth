@@ -1,0 +1,57 @@
+\section{SSL, OpenLDAP, SASL beállítása}
+Az OpenLDAP is támogatja a Kerberost, ehhez neki is meg kell adni egy keytab fájlt. A szolgáltatásnév
+\texttt{ldap/gepnev}. Például:
+
+\ut{kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5.keytab.ldap ldap/zeratul.panthernet}}\\
+  Entry for principal ldap/zeratul.panthernet with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5.keytab.ldap.\\
+  Entry for principal ldap/zeratul.panthernet with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab
+  WRFILE:/etc/krb5.keytab.ldap.}
+
+\noindent A \texttt{/etc/openldap/slapd.conf} fájlt be kell állítani a SASL (GSSAPI) használatára:
+
+\ut{sasl-realm panthernet\\
+  sasl-regexp uid=([\^,]+),.*cn=GSSAPI uid=\$1,ou=People,dc=panthernet\\
+  sasl-host zeratul.panthernet
+}
+
+\noindent Az init scriptben meg kell adni, hol van a keytab fájl, még a slapd indulása előtt:
+
+\ut{export KRB5\_KTNAME=/etc/krb5.keytab.ldap}
+
+\noindent Kerberos ticket nélkül:
+
+\ut{panther@zeratul ~ \$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}\\
+  SASL/GSSAPI authentication started\\
+  ldap\_sasl\_interactive\_bind\_s: Local error (-2)\\
+  additional info: SASL(-1): generic failure: GSSAPI Error: Miscellaneous failure (No credentials cache found)\\
+  panther@zeratul ~ \$ \emph{\textbf{ldapsearch   uid=panther}}\\
+  ldap\_sasl\_interactive\_bind\_s: No such object (32)
+}
+
+
+Azzal együtt már működik:
+\ut{\$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}}
+
+
+\section{Levelezőkliensek beállítása}
+\subsection{Mutt}
+A mutt rendszerszintű beállítófájljában, a \texttt{/etc/mutt/Muttrc}-ben a következőket állítjuk be:
+
+\ut{set certificate\_file="/etc/openldap/ssl/cacert.pem"\\
+  set move=no
+  set hostname=panthernet\\
+  set ssl\_starttls=yes\\
+  set folder=\$MAIL
+}
+
+Az első a CA tanúsítványát jelöli, a 3. azért kell, hogy ne a gépnév.domain alakú email cím legyen, ha elküld a
+rendszer egy levelet, a 4. az SSL/TLS titkosítást állítja be, végül az utolsó az IMAP könyvtár helye (INBOX), ami egy
+környezeti változó:
+
+\ut{export MAIL=\{\$USER@zeratul.panthernet\}INBOX}
+
+
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:

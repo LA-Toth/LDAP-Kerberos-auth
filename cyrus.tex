@@ -1,0 +1,90 @@
+\section{Cyrus (IMAP)}
+A Cyrus IMAP szerverhez fel kell tenni a következő csomagokat (a SASL-ra legfőképpen későbbb lesz szükség).
+
+\ut{dev-libs/cyrus-sasl\\
+  net-mail/cyrus-imap-admin\\
+  net-mail/cyrus-imapd\\
+}
+
+Korábban már láttuk, hogyan lehet az \texttt{imap/zeratul.panthernet@PANTHERNET} principal-t hozzáadni a rendszerhez,
+a továbbiakban szükség lesz rá. Tegyük fel, hogy \textt{kinit}-tel már azonosítottuk magunkat. Ekkor kipróbálhatjuk a
+már elindított imap szervert:
+
+\ut{\$ \emph{\textbf{imtest -m  GSSAPI -u panther  zeratul.panthernet}}\\
+  S: * OK zeratul Cyrus IMAP4 v2.2.12-Gentoo server ready\\
+  C: C01 CAPABILITY\\
+  S: * CAPABILITY IMAP4 IMAP4rev1 ACL QUOTA LITERAL+ MAILBOX-REFERRALS NAMESPACE UIDPLUS ID NO\_ATOMIC\_RENAME UNSELECT CHILDREN MULTIAPPEND BINARY SORT THREAD=ORDEREDSUBJECT
+  THREAD=REFERENCES ANNOTATEMORE IDLE STARTTLS LOGINDISABLED AUTH=GSSAPI SASL-IR LISTEXT LIST-SUBSCRIBED X-NETSCAPE\\
+  S: C01 OK Completed
+}
+
+\noindent Hogyha nem menne, akkor a \texttt{/etc/cyrus.conf} fájlt kell módosítani:
+
+\ut{SERVICES \{\\
+  \# Add or remove based on preferences.\\
+  imap          cmd="imapd" listen="imap2" prefork=0\\
+  pop3          cmd="pop3d" listen="pop-3" prefork=0\\
+  \\
+  \# Don't forget to generate the needed keys for SSL or TLS\\
+  \# (see doc/html/install-configure.html).\\
+  imaps         cmd="imapd -s" listen="imaps" prefork=0\\
+  \#pop3s                cmd="pop3d -s" listen="pop3s" prefork=0\\
+  \\
+  sieve         cmd="timsieved" listen="sieve" prefork=0\\
+  \\
+  \# at least one LMTP is required for delivery\\
+  \#lmtp         cmd="lmtpd" listen="lmtp" prefork=0\\
+  lmtpunix      cmd="lmtpd" listen="/var/imap/socket/lmtp" prefork=0\\
+  \\
+  \# this is only necessary if using notifications\\
+  \#notify       cmd="notifyd" listen="/var/imap/socket/notify" proto="udp" prefork=1
+  \}
+}
+
+\noindent Ennek megfelelően a postfix beállítása:
+
+\ut{mailbox\_transport = lmtp:unix:/var/imap/socket/lmtp}
+
+\noindent Itt az imap, pop3, imaps portok engedélyezettek, utóbbihoz szükség van egy CA által aláírt tanúsítványra is
+
+\ut{\#/etc/imapd.conf részlet\\
+  tls\_ca\_file:            /etc/ssl/panthernet.ca.crt\\
+  tls\_cert\_file:          /etc/ssl/cyrus/server.crt\\
+  tls\_key\_file:           /etc/ssl/cyrus/server.key\\
+}
+
+\noindent A fenti beállítások mellett előjött az a hiba, hogy a \texttt{saslauthd} nem futott, valamint a postfixnak
+nem volt joga a cyrus unix foglalatához:
+
+\ut{Oct 30 09:51:12 zeratul imaps[9961]: starttls: SSLv3 with cipher AES256-SHA (256/256 bits reused) no authentication\\
+  Oct 30 09:51:19 zeratul imaps[9961]: cannot connect to saslauthd server: No such file or directory\\
+  Oct 30 09:51:19 zeratul imaps[9961]: badlogin: zeratul.panthernet [10.0.1.101] plaintext panther SASL(-1): generic
+  failure: checkpass failed\\\\
+  Oct 30 09:52:51 zeratul postfix/pickup[9204]: AE99D79BB78E: uid=1000 from=<panther>
+  Oct 30 09:52:51 zeratul postfix/cleanup[10026]: AE99D79BB78E: message-id=<20051030085251.AE99D79BB78E@zeratul.panthernet>
+  Oct 30 09:52:51 zeratul postfix/qmgr[9205]: AE99D79BB78E: from=<panther@zeratul.panthernet>, size=488, nrcpt=1 (queue active)\\
+  Oct 30 09:52:51 zeratul postfix/lmtp[10029]: AE99D79BB78E: to=<panther@zeratul.panthernet>, orig\_to=<panther>,\\
+  relay=none, delay=0, status=deferred (connect to /var/imap/socket/lmtp[/var/imap/socket/lmtp]: Permission denied)\\
+}
+
+
+
+\noindent A Cyrus imap fájlját a következő módon tettem elérhetővé a postfix számára:
+
+\ut{zeratul socket \# setfacl -m u:postfix:x ..\\
+  zeratul socket \# setfacl -m u:postfix:x .\\
+  zeratul socket \# setfacl -m u:postfix:rw lmtp\\
+  zeratul socket \# l\\
+  összesen 12\\
+  drwxr-x---+~~2 cyrus mail~~~88 okt 30 09:58 ./\\
+  drwxr-x---+~12 cyrus mail 4096 okt 30 09:51 ../\\
+  -rw-------~~~1 cyrus mail~~~~0 okt 29 23:18 imap-1.lock\\
+  -rw-------~~~1 cyrus mail~~~~ 0 okt 30 09:25 imaps-1.lock\\
+  -rw-r--r--~~~1 root~~root~~~~0 okt 29 23:09 .keep\\
+  srwxrwxrwx+~~1 cyrus mail~~~~0 okt 30 09:51 lmtp=
+}
+ 
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:

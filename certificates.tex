@@ -1,0 +1,136 @@
+\section{Tanúsítvány-kiszolgáló (CA) beállítása}
+
+Az SSL/TLS titkosítást használó szerverek mindegyike egy-egy tanúsítványt küld a kliensnek. Mire is jó ez? A
+kiszolgálót hitelesíti ez, vagyis azt jelzi, hogy a kliens biztosan azzal kommunikál, akivel szeretne. Azaz csak
+majdnem. Ugyanazzal a tanúsítvánnyal rendelkező szerverrel.
+
+Alapesetben önaláírtak ezek, vagyis hitelességi értékük csak annyi, hogy elvileg megint ugyanahhoz kapcsolódik a
+szerver. No de ha új tanúsítványa lesz a szervernek, akkor máris nem megbízható. Legjobb választás az lenne, ha
+egyszerűen nem fogadnánk el ilyet, ha van beleszólásunk.
+
+Van más megoldás is: saját tanúsítvány-kiszolgáló (CA) beállítása, és ennek ún {\em gyökértanúsítványát, root
+  certificate-jét} aláiratni egy másik, sokak által ismert tanúsítványkiszolgálóval, vagy csak az adott szerverét
+aláiratni. Ez pénzbe kerül. Ha ezt el szeretnénk kerülni, akkor is jó a CA használata, ennek certificate-jét
+importálva/felhasználva sok helyen (fentebb már láttunk rá példát), pl böngészőhöz is hozzáadva.
+
+\subsection{openssl.cnf}
+Ez a fájl írja le a CA működését. Több CA is lehet benne, ebből egyik az alapértelmezett (lásd a CA szakasz).
+
+A CA\_default az a CA, amit most használunk, lehetne más neve is, csak így utal arra, hogy ő az alapértelmezett.
+
+\ut{[ ca ]\\
+  default\_ca      = CA\_default}
+
+\ut{\begin{tabular}{ll}
+    [ CA\_default ] & \\
+    dir             &= /root/panthernet.ca\\
+    certs           &= \$dir/certs\\
+    crl\_dir         &= \$dir/crl\\
+    database        &= \$dir/ca.db.index\\
+    new\_certs\_dir   &= \$dir/newcerts\\
+    &\\
+    certificate     &= \$dir/ca/cacert.pem\\
+    serial          &= \$dir/ca.db.serial\\
+    &\\
+    crl             &= \$dir/crl.pem\\
+    private\_key    &= \$dir/ca/private/cakey.pem\\
+    RANDFILE        &= \$dir/ca.db.rand\\
+    &\\
+    x509\_extensions &= usr\_cert\\
+    &\\
+    name\_opt        &= ca\_default\\
+    cert\_opt        &= ca\_default\\
+    default\_days    &= 365\\
+    default\_crl\_days &= 30\\
+    default\_md      &= md5\\
+    preserve        &= no\\
+    policy          &= policy\_match\end{tabular}}
+
+\ut{\begin{tabular}{ll}
+    [ policy\_match ] & \\
+    countryName             &= match\\
+    stateOrProvinceName     &= optional\\
+    organizationName        &= match\\
+    organizationalUnitName  &= optional\\
+    commonName              &= supplied\\
+    emailAddress            &= supplied
+  \end{tabular}
+}
+
+A második lista a CA beállításait tartalmazza, a harmadik pedig azt, hogy a CA mikor tud aláírni egy tanúsítványt:
+minek kell egyeznie, mi az, ami nem kötelező, és mi az, ami kötelező, de bármi lehet.
+
+Megadható az is, hogy alapértelmezetten mivel legyen kitöltve a tanúsítvány, valamint hogy milyen kérdések
+szerepeljenek, csakúgy, mint az alapértelmezett kulcshosszt is. Ennek részlete:
+
+\ut{\begin{tabular}{ll}
+    [\ req\ ]&\\
+    default\_bits           &= 1024\\
+    distinguished\_name     &= req\_distinguished\_name
+  \end{tabular}
+}
+
+\ut{\begin{tabular}{ll}
+    [\ req\_distinguished\_name\ ]&\\
+    countryName                     &= Country Name (2 letter code)\\
+    countryName\_default             &= HU\\
+    countryName\_min                 &= 2\\
+    countryName\_max                 &= 2\\
+    stateOrProvinceName             &= State or Province Name (full name)\\
+    stateOrProvinceName\_default     &=\\
+    localityName                    &= Locality Name (eg, city)\\
+    localityMame\_default            &= Budapest\\
+    0.organizationName              &= Organization Name (eg, company)\\
+    0.organizationName\_default      &= PantherHome\\
+    organizationalUnitName          &= Organizational Unit Name (eg, section)\\
+    commonName                      &= Common Name (eg, YOUR name)\\
+    commonName\_max                  &= 64\\
+    emailAddress                    &= Email Address\\
+    emailAddress\_max                &= 64\\
+  \end{tabular}
+}
+
+
+
+A CA tanúsítványának létrehozása, 10 évig érvényesen:\\
+\texttt{openssl req -config /root/panthernet.ca/openssl.cnf \textbackslash\\
+  \beh[2] -new -x509 -keyout /root/panthernet.ca/ca/private/cakey.pem \textbackslash\\
+  \beh[2] -out /root/panthernet.ca/ca/cacert.pem  -days 3650}\\
+
+A következő script hoz létre egy ``kérést'' (request) aláírásra, vagyis az aláiratlan  tanúsítványt (.csr: certificate
+sign request) és a hozzá tartozó  privát kulcsot (.key fájl).
+
+\ut{\#!/bin/bash\\
+  \# file: pnet-careq\\
+  if [[ \$\# != 1 ]]; then exit 4; fi\\
+  openssl req -config /root/panthernet.ca/openssl.cnf  -nodes \textbackslash\\
+  \beh[2] -newkey rsa:2048  -keyout \$1.key -out \$1.csr}
+
+Az előző szkript által generált adatot alá is irathatjuk. A létrehozott, aláírt tanúsítvány a .crt kiterjesztésű
+fájlba kerül.
+
+\ut{\#!/bin/bash\\
+  \# file: pnet-casign\\
+  if [[ \$\# != 1 ]]; then exit 4; fi\\
+  openssl ca -config /root/panthernet.ca/openssl.cnf  -policy policy\_match \textbackslash \\
+  \beh[2] -out \$1.crt -infiles \$1.csr}
+
+Aláírásra példa:
+
+\ut{zeratul panthernet.certs \# pnet-casign ldaps.panthernet\\\hspace*{1mm}
+  Using configuration from /root/panthernet.ca/openssl.cnf\\
+  Enter pass phrase for /root/panthernet.ca/ca/private/cakey.pem:\\
+  %    DEBUG[load\_index]: unique\_subject = "yes"\\
+  Check that the request matches the signature\\
+  Signature ok\\
+  Certificate Details:\\
+  Serial Number: 1 (0x1)\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ Validity\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ Not Before: Oct 15 10:36:30 2005 GMT\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ Not After : Oct 15 10:36:30 2006 GMT\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ Subject:\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ countryName\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ = HU\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ organizationName\ \ \ \ \ \ \ \ \ \ = PantherHome\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ commonName\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ = ldaps.panthernet\\
+  \hspace*{1mm}\ \ \ \ \ \ \ \ \ \ \ \ emailAddress\ \ \ \ \ \ \ \ \ \ \ \ \ \ = postmaster@panthernet}
+

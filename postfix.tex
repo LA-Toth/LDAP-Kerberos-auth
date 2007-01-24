@@ -1,0 +1,77 @@
+\section{Postfix}
+
+\subsection{/etc/postfix/main.cf}
+A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén myilen
+gépnevet adjon meg...
+
+\ut{myhostname = zeratul.panthernet\\
+  mydomain = panthernet\\
+  myorigin = \$myhostname\\
+  mydestination = \$myhostname, localhost.\$mydomain, localhost, \$mydomain\\
+  relayhost = smtp.axelero.hu\\
+  alias\_maps = hash:/etc/mail/aliases,\\
+  \beh[2] ldap:/etc/postfix/ldapaliases-mailaliases.cf, \\
+  \beh[2] ldap:/etc/postfix/ldapaliases-people.cf}
+
+
+Alapesetben a \texttt{mydomain} a \texttt{myhostname} végével egyezik meg (nem kötelez megadni). Az SMTP protokollban
+ez utóbbi szerepel, vagyis amikor a levelet elküdli a postfix, akkor ilyen néven csatlakozik a másik szerverhez
+(\$myhostname). A \texttt{myorigin} az, ami után megadott gépnév fog szerepelni az elkldött levél feladójaként és akár
+címzettként is. Például a root küld egy levelet saját magának: \texttt{mail root}. Ekkor mind a feladó, mind a címzett
+root@\$myorigin lesz.
+
+A \textt{mydestination} vesszővel elválasztott lista, azon gépneveket tartalmazza, amelyekre fogad levelet, vagyis az
+itt felsorolt nevekhez tartzó felhasználók (pl \texttt{user@\$mydomain}) leveleit nem egy másik smtp szervernek
+továbbítja, hanem az imap, pop, stb kiszolgálónak, ahonnan az adott felhasználó letöltheti leveleit.
+
+A \texttt{relayhost} az, ahova alapesetben (kivéve a \filename{/etc/postfix/transport} fájlban megadott címzetteket,
+tartományokat) továbbítja a leveleket. Többféle formátumban meg lehet adni, IPv6-ot is támogat. Formáutma pl a fenti,
+aztán 192.168.0.1:25 is lehet (port számmal). A lehetőségek a konfigurációs fájlban megjegyzésben láthatók.
+
+Amennyiben nincsen \texttt{relayhost}, akkor közvetlenül a címzett levelezőszerveréhez csatlakozik (amit a cím domain
+részéhez tartozó MX dns bejegyzésből vesz).
+
+Az \texttt{alias\_maps} mondja meg, hogy egy adott email címhez tartozó levelek hova továbbítódjanak. Itt most az
+\filename{aliases} fájlban találhatóak, valamint ldap-ban, a két fájl különböző beállításokat tartalmaz.
+
+\subsection{/etc/mail/aliases}
+Debian rendszereken ennek a fájlnak a helye: \filename{/etc/aliases}.
+
+Formátumra részlet:\\
+\ut{webmaster:  root\\
+  www:                webmaster\\
+  \\
+  levlista: panther@elte.hu root}
+
+Jelen esetben a www címre küldött levelek a webmasternek továbbítódnak, ami még mindig csak virtulális cím, vagyis a
+neki címzett levelek a root felhasználónak továbbítódnak. Így a www címre küldött leveleket is a root kapja meg.
+
+Kisebb, statikus levelezési listák is megadhatóak így, ahol több címzett van.
+
+A Postfix ezt még nem kezeli, ezért adatbázist kell létrehozni belőle (erre utal a \texttt{hash} a fájlnév előtt), ez
+a \texttt{/usr/bin/newaliases} paranccsal tehető meg. A létrehozott fájl: /etc/mail/aliases.db.
+
+
+
+\subsection{/etc/postfix/ldapaliases.cf}
+Az ldap-ban történő keresést az alábbi szerkezetű fájl teszi lehetővé.
+
+\ut{server\_host = ldap://ldaps.panthernet:389\\
+  search\_base = ou=MailAliases,dc=panthernet\\
+  version = 3\\
+  scope = one\\
+  bind = no\\
+  query\_filter = (maillocaladdress=\%s)\\
+  result\_attribute = mailroutingaddress\\
+  dereference = 3\\
+  timeout = 10}
+
+Az első sor azt az URI-t adja meg, ami a szervert azonosítja. A postfix a \texttt{search\_base} beállításban megadott
+csúcs alatti részfában keres. Mivel a \texttt{scope} értéke ``one'', az előbb megadott csúcs gyerekeit nézi végig. A
+3-as verzió  a mostani. A \texttt{bind = no} a névtelen kapcsolódást teszi lehetővé (mint a /etc/ldap.conf-ban a
+hasonló beállítás).
+
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:
