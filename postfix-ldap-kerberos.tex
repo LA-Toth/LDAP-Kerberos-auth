@@ -122,131 +122,173 @@
   
   \newpage
   \section{Az OpenLDAP}
-  Az openldap az LDAP protokollt ({\em Lightweight Directory Access Protocol}) valósítja meg. Ez egy könyvtárszolgáltatás
-  (directory service) elérésére szolgál, aminek jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
+
+  Az itt ismertetett rendszer egyik központi része az OpenLDAP szerver, amely az LDAP protokollt ({\em Lightweight
+    Directory Access Protocol}) valósítja meg. Ez egy ``könyvtárszolgáltatás''
+  (directory service) elérésére szolgál, amelynek jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
   optimalizált adatbázist használ az adatok tárolására. Az adatbázis lényegében \emph{bármilyen adatot} tartalmhazhat
   \emph{bármiről}, az egyetlen megkötés, hogy faszerkezetű hierarchiába kell szervezni.
 
-  Az OpenLDAP általában TCP/IP kapcsolatot használ az adatok elérésére, bár a helyi gépen (ahol az ldap kiszolgáló
-  található), unix socketet is használhat.
+  Az OpenLDAP szerverhez általában TCP/IP kapcsolaton keresztül lehet csatlakozni, azonban a helyi gépen (amelyen az
+  ldap kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
   
-  \subsection{Mi LDAP (röviden)?}
-  A benne tárolt adatokat egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja. A név több részből áll, a
-  különböző részek alapján faszerkezetű hierarchiába szervezhetőek a bejegyzések. Minden bejegyzéshez tartozik egy vagy
-  több tulajdonság, amit egy {\em típus-érték} pár határoz meg. A típus lehet például a ``common name'' (cn) - mindennapi
-  név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező.
+  \subsection{Mi LDAP?}
 
-  A fa csúcsainak elhagyható és kötelező tulajdonságait az objektum (csúcs) osztályai írják le
-  (tulajdonságosztályok). A nevük: \texttt{objectclass}, és maguk is (speciális) tulajdonságok.
+  Az LDAP egy hierarchikusan (faszerkezetbe) szervezett adatbázis elérésére szolgáló protokoll. A fában tárolt adatokat
+  egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja, amely név több részből áll, a  különböző részek alapján
+  történik a bejegyzések (objektumok) fába szervezése. Minden bejegyzéshez tartozik egy vagy több
+  tulajdonság, amit egy {\em kulcs-érték} pár határoz meg. A kulcs lehet például a ``common name'' (cn) - mindennapi
+  név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező. Egy-egy
+  tulajdonság (lényegében maga a kulcs) többször is szerepelhet egy objektumon belül.
 
-  \subsection{Beállítások}
-  A beállítások a /etc/openldap alatt találhatóak.
+  A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúcsok) osztályai írják le
+  (tulajdonságosztályok). A nevük: \texttt{objectclass}, és a jelölés erejéig legalábbis  maguk is (speciális)
+  tulajdonságok.
+
+
+  \subsection{Telepítés, beállítás}
+  Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatóak, melyet az
+  \texttt{emerge openldap} paranccsal telepíthetünk Gentoo linux esetén, azonban például Debian alatt már több csomagból
+  áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, egy minimális fastruktúrát létrehoz a \texttt{slapd.conf}
+  állománnyal együtt, amit a Gentoo nem tesz meg.
+
+  A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt, Debianban ez a \texttt{/etc/ldap}.
 
   \subsubsection{A /etc/openldap/slapd.conf}
-  Ez a fájl határozza meg a kiszolgáló működését. Csak a szerver felhasználója olvashatja. Több részből áll:
+  A \texttt{slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
+  
   \begin{itemize}
   \item Sémák (a használható attribútumokat adják meg)
   \item Hozzáférés-vezérlési listák (ACL)
   \item Titkosítás, hitelesítés és egyéb információk
   \item A (háttér)adatbázis típusa, a keresést segítő index módja
   \item Az LDAP faszerkezet csúcsát jelölő név
-  \item A szuperfelhasználó egyedi neve és jelszava (mindent olvas, és ír, az ACL nem érvényes rá)
+  \item A ``szuperfelhasználó'' (\texttt{rootdn}) egyedi neve és jelszava (mindent olvas, és ír, az ACL nem érvényes rá)
   \end{itemize}  
+
+  Figyeljünk arra, hogy ne olvashassa minenki ezt a fájlt!
 
   \paragraph{Séma} Az általunk használt séma az alábbi:
 
-  \ut{include\hspace{1.5cm} /etc/openldap/schema/core.schema\\
-    include\hspace{1.5cm} /etc/openldap/schema/cosine.schema\\
-    include\hspace{1.5cm} /etc/openldap/schema/inetorgperson.schema\\
-    include\hspace{1.5cm} /etc/openldap/schema/nis.schema\\
-    include\hspace{1.5cm} /etc/openldap/schema/misc.schema}
+\begin{Verbatim}
+include         /etc/openldap/schema/core.schema
+include         /etc/openldap/schema/cosine.schema
+include         /etc/openldap/schema/inetorgperson.schema
+include         /etc/openldap/schema/nis.schema
+include         /etc/openldap/schema/misc.schema
+\end{Verbatim}
   
-  Itt az első a rendszernek kell lényegében, a következő három az általánosan használt attribútumokat tartalmazza
+  A felsoroltak közül az első a rendszernek kell lényegében, a következő három az általánosan használt attribútumokat tartalmazza
   (többek között a felhasználók definiálásához). Az utolsó ``\texttt{misc}'', azaz nem megszokott, most az ebben
   definiáltakkal lesz meghatározva az a cím, amelyre érkezett leveleket az adott felhasználó fogadhatja, illetve melyre
-  továbbküldheti (ha nem küldi tovább, akkor is szükséges). Az ldap-ban tárol álnevek (aliasok) meghatározásához is
+  továbbküldheti (ha nem küldi tovább, akkor is szükséges). Az ldap-ban tárolt álnevek (aliasok) meghatározásához is
   szükséges.
   
   \paragraph{Jogok (ACL)} A következő beállítás nagyon alapszintű, érdemes alaposabban utánaolvasni az openldap
-  leírásában, vagy épp az interneten. 
+  leírásában, vagy épp az interneten, mert esetleg sokkal bonyolultabb hozzáférés-szabályozásra lesz szükség.
 
-  \ut{access to attr=userPassword\\
-    \beh[3] by dn="cn=admin,dc=panthernet" write\\
-    \beh[3] by anonymous auth\\
-    \beh[3] by self write\\
-    \beh[3] by * none\\\\
-    access to dn.children="dc=panthernet" by * read\\
-    \\
-    \# The admin dn has full write access\\
-    access to dn.children="ou=People,dc=panthernet"\\
-    \beh[3] by dn="cn=admin,dc=panthernet" write\\
-    \beh[3] by self write\\
-    \beh[3] by * read\\\\
-    access to * by * none}
+  A jelszót csak saját maga tudja írni, valamint az admin.
+
+\begin{Verbatim}
+access to attrs=userPassword
+    by dn="cn=admin,dc=panthernet" write
+    by anonymous auth
+    by self write
+    by * none
+\end{Verbatim}    
+
+  A következő két beállítás nagyjából azonos a jelenlegi esetben, csak az egyik szükséges!
+
+\begin{Verbatim}
+access to dn.children="ou=People,dc=panthernet"
+        by dn="cn=admin,dc=panthernet" write
+        by * read
+
+#access to *
+#        by dn="cn=admin,dc=panthernet" write
+#        by * read
+\end{Verbatim}
 
 
-  Az itt látható jogosultság azt mondja, hogy a \texttt{userPassword} (jelszó) tulajdonságot írhatja az ``admin'', és a
-  bejegyzés (önmaga). Az admin egy különleges felhasználó, mert nincsen bent a Kerberosban, és különbözik a slapd.conf
-  fájlban megadottól is. Csak neki van igazi jelszava az ldap adatbázisban.  Ha nem lenne Kerberos, akkor viszont
-  mindenkié itt lenne. Ezért a ``\texttt{by self write}'' sor el is hagyható (javasolt). Névtelenül egyéltalán nem lehet
-  hozzáférni, mert hitelesítés szükséges (``\texttt{anonymous auth}''), mindenki másnak nincs rá joga.
-
-  Ezt leszámítva a teljes \texttt{dc=panthernet} alatti fát olvashatja mindenki (2. bejegyzés).
-
-  A harmadik megint túl megengedő, mert a ``\texttt{self write}'' itt is felesleges, csak egyes attribútumokra kellene
-  engedni.
-
-  \paragraph{A fa gyökere és a root ``user''}  A faszerkezet gyökerét, aminek a neve minden csúcs nevének végződése, a
-  \texttt{suffix} beállítás jelzi. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
-  azonosítja.
+  Látszik, hogy az admin nevű felhasználónak joga van írni bármilyen bejegyzést. De ki is ő? A rendszerben van egy
+  kitüntetett felhasználó (\texttt{rootdn}, akinek a jogosultságát nem lehet szabályozni, bármit módosíthat, a
+  neve és a jelszava a\texttt{slapd.conf} fájlban adható meg. Éppen ezért csak bizonyos esetekben szabad használni, ha
+  máshogyan nem oldható meg a módosítás. Ebből következően szükség van egy kitüntetett felhasználóra is, amely az LDAP
+  adminisztrátor lesz, a Debian telepítésnek megfelelően \texttt{cn=admin,dc=domain,dc=hu} formában hozzuk létre.
   
-  \ut{suffix\hspace{1.5cm} "dc=panthernet"\\
-    rootdn\hspace{1.5cm} "cn=administrator,dc=panthernet"\\
-    rootpw\hspace{1.5cm} \{SSHA\}blabla}
+  
+  \paragraph{Az adatbázis és a root ``user''} Az adatokat általtalában Berkeley adatbázis tartalmazza, mely nagyon
+  gyors, ámde nem hordozható, vagyis maguk az adatbázisfájlok nem vihetőek át másik gépre. Ehhez exportálni kell az
+  adatbázist, a másik gépen pedig importálni. A faszerkezet gyökerét, aminek a neve minden csúcs nevének végződése, a
+  \texttt{suffix} beállítás tartalmazza. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
+  azonosítja.
+ 
+\begin{Verbatim}
+#######################################################################
+# BDB database definitions
+#######################################################################
+
+database        bdb
+suffix          "dc=panthernet"
+rootdn          "cn=Manager,dc=panthernet"
+# Cleartext passwords, especially for the rootdn, should
+# be avoid.  See slappasswd(8) and slapd.conf(5) for details.
+# Use of strong authentication encouraged.
+rootpw          {SSHA}blabla
+
+checkpoint      32      30 # <kbyte> <min>
+
+
+# The database directory MUST exist prior to running slapd AND
+# should only be accessible by the slapd and slap tools.
+# Mode 700 recommended.
+directory       /var/lib/openldap-data
+# Indices to maintain
+index   objectClass     eq
+\end{Verbatim}
 
   Mint látható, a jelszót is meg kell adni. Lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
-  célszerű. Érdemes titkosítani, és az így kapott jelszót megadni. Az SSHA egy megfelelő algoritmus, egyirányú, ezért
-  nem lehet a jelszót visszaállítani, csak bruteforce-szal törhető (és szótári támadással). Tehát a jó jelszó: kis-
-  és nagybetűk, számok vegyesen, lehetőleg egyéb nyomtatható karakterekkel (pl \#, \&, !, stb) megtűzdelve, minél
-  hosszabb. Mivel a jeslszó hash formájában tárolódik, ezért több különböző jelszót megadva azonos hash-t kapunk. SHA1
-  esetén 160 bites a hash hossza, ennél hosszabb jelszavak esetén garantáltan lesz több egyező is.
-
-  Ha kerberossal hitelesített a felhasználó, aki hozzáfér a jelszóhoz és módosítja, akkor egy-egy rondább jelszót elég
-  csak bejelentkezésenként egyszer megadni, minden egyéb szolgáltatásnál már nem szükséges.
+  célszerű, ugyanis ha esetleg valami hiba folytán a \texttt{slapd.conf} állományt más is olvashatja, akkor azonnal
+  megvan. Ha egy bonyolult helszót választunk, és titkosítva tároljuk, akkor akár évekig, sőt esetleg évezredekig
+  tartana kitalálni a jelszót. Az SSHA egy megfelelő algoritmus, egyirányú, ezért
+  nem lehet a jelszót visszaállítani, csak bruteforce-szal törhető (vagy szótári támadással, ha rossz a jelszó). Tehát a
+  jó jelszó: kis-  és nagybetűk, számok vegyesen, lehetőleg egyéb nyomtatható karakterekkel (pl \#, \&, ! stb.)
+  megtűzdelve, és legyen minél hosszabb. Mivel a jelszó hash formájában tárolódik, ezért több különböző jelszót megadva
+  azonos hash-t kapunk. SHA1 esetén 160 bites a hash hossza, ennél hosszabb jelszavak esetén garantáltan lesz több
+  egyező is.
+  
 
   A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használata:\\
   \ut{slappasswd -h {SSHA}}
 
-  \paragraph{Az adatbázis} Meg kell adni azt is, hogy milyen adatbázist használjon a háttérben az openldap szerver
-  (milyen {\em backendet}).
-
-  \ut{database        bdb\\
-   checkpoint      32      30 \# \textless kbyte\textgreater \textless min\textgreater\\
-   \# The database directory MUST exist prior to running slapd AND\\
-   \# should only be accessible by the slapd and slap tools.\\
-   \# Mode 700 recommended.\\
-   directory       /var/lib/openldap-data\\
-   \# Indices to maintain\\
-   index   objectClass     eq
-  }
-
-  Az adatbázis (\texttt{database}) lehet többféle, a legegyszerűbb az \texttt{ldbm}, a legjobb választás a
-  \texttt{bdb}. A \texttt{directory} beállításnak megfelelelő könyvtárban lesz az adatbázis. A könyvtárra a \texttt{700}
-  jogot ajánlott megadni, hogy ne tudja a könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a
-  kereséshez használt index.
   
-  \paragraph{Kerberos, TLS, és ami még kimaradt} Az a jó, ha a szervert csak titkosítottan (TLS-sel) érhetjük el. TLS =
-  Transport Layer Security. Beállítása:\\
-  \ut{\begin{tabular}{ll}
-      TLSCACertificateFile & /etc/openldap/ssl/cacert.pem\\
-      TLSCertificateFile & /etc/openldap/ssl/ldaps.panthernet.crt\\
-      TLSCertificateKeyFile & /etc/openldap/ssl/ldaps.panthernet.key\\
-      TLSCipherSuite &  Medium,Heigh
-  \end{tabular}}
+  Az adatbázisról (\texttt{database} beállításról) mégegyzser: az adatbázis lehet többféle, a legegyszerűbb az
+  \texttt{ldbm}, a legjobb választás azonban a  \texttt{bdb} (Berkeley DB), melynek fájljai a \texttt{directory}
+  beállításnak megfelelelő könyvtárban lesznek. A könyvtárra a \texttt{700} jogot ajánlott megadni, hogy ne tudja a
+  könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a  kereséshez használt index.
   
+  \paragraph{Kerberos, TLS, és ami még kimaradt} Az eddigiek alapján nagyjából működőképes a rendszerünk, azonban vannak
+  hiányosságai. Az egyik az, hogy a szerver és a kliens között titkosítatlan a kommunikáció, ezért egy harmadik személy
+  is hozzáférhet az adatokhoz, ha valahogyan meg tudja szerezni a kliens-szerver kapcsolat csomagjait. A szerver a TLS
+  (és SSL) titkosítást támogatja (Transport Layer Security és Secure Socket Layer kifejezések rövidítései).
+
+  A TLS beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A beállítások a következők:
+
+\begin{Verbatim}
+TLSCACertificateFile /etc/openldap/ssl/cacert.pem
+TLSCertificateFile /etc/openldap/ssl/ldaps.panthernet.crt
+TLSCertificateKeyFile /etc/openldap/ssl/ldaps.panthernet.key
+#TLSCipherSuite HIGH,MEDIUM
+\end{Verbatim}  
+
   Az első sor jelzi a tanúsítvány-kiszolgáló (CA) tanúsítványát (certificate). A második az openldapét, a harmadik pedig
   az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
-  tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi.
+  tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
+
+
+  Ha kerberossal hitelesített a felhasználó, aki hozzáfér a jelszóhoz és módosítja, akkor egy-egy rondább jelszót elég
+    csak bejelentkezésenként egyszer megadni, minden egyéb szolgáltatásnál már nem szükséges.
+
   
   A maradék beállítás:
   
