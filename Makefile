@@ -1,5 +1,5 @@
 .PHONY:  all build edit log viewpdf viewps silent make pdf emacs-x dvi emacs e ex html
-NAME=$(notdir $(shell pwd))
+NAME=main
 all:	build
 build:	$(NAME).tex
 	pslatex ${NAME}.tex
