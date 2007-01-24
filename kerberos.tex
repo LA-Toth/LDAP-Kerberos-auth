@@ -1,4 +1,4 @@
-\section{Kerberos}
+\chapter{Kerberos}
 
 Egy részletes leírás itt olvasható: http://cfhay.inf.elte.hu/kerberos/leiras.html
 
@@ -25,10 +25,10 @@ akkor kapjuk meg, ha már egyszer bejelentkeztünk az imap szerverre. SSH szerve
 Ebben a dokumentumban a \emph{mit-krb5} változatról lesz szó, viszont létezik másik implementáció is, a \emph{heimdal}.
 
 A jegyet nevezhetjük kulcsnak is, és akkor kulcskiosztó szerverünk van (KDC).
-\subsection{A kerberos beállítása}
+\section{A kerberos beállítása}
 A legfontosabb beállásokat a \texttt{/etc/krb5.conf} tartalmazza.
 
-\subsubsection{/etc/krb5.conf illetve DNS bejegyzések}
+\subsection{/etc/krb5.conf illetve DNS bejegyzések}
 A fájlt mindenki olvashatja. Nálam ezek a beállítások vannak:
 
 \ut{[libdefaults]\\
@@ -91,7 +91,7 @@ EXAMPLE.COM. Továbbá megnézi a fent megadott \_kerberos.* bejegyzéseket is, 
 kerberos kiszolgálót.
 
 
-\subsubsection{A realm létrehozása}
+\subsection{A realm létrehozása}
 A(z elsődleges) KDC-n a \texttt{kadmin.local} programmal lehet adminisztrálni a realmot. Ha ezt még nem hoztuk létre,
 akkor ilyen hibaüzenetet kapunk:
 
@@ -122,7 +122,7 @@ változtatást megtehet a szerveren az, aki csak akar...
 Ha meg kell adni a mesterjelszót a \texttt{kadmin.local}-nak, akkor azt a parancs után megadott \texttt{-m} opcióval
 tehetjük meg. A program indulás után bekéri a jelszót.
 
-\subsection{A kerberos bejegyzések létrehozása és listázása}
+\section{A kerberos bejegyzések létrehozása és listázása}
 A \texttt{kadmin.local} kliens programot elindítva elkedhetjük a felhasználókat és a szolgáltatásokat megadni. Első lépésben
 házirendeket (policy) érdemes létrehozni, amelynek most különösebb szerepe nincsen, viszont bármikor szükséges lehet a
 szabályok szigorítása, és így általánosan kezelhetjük a felhasználókat.
@@ -197,7 +197,7 @@ kiszolgáló nem adhat meg jelszót, ezért jelszava például a \texttt{/etc/kr
 lényeg, hogy csak a kiszolgáló felhasználója tudja olvasni. Itt most ebbe a fájlba került.
 
 
-\subsubsection{A KDC beállítása}
+\subsection{A KDC beállítása}
 A  KDC beállítófájlja, amin nem nagyon kell változtatni (/etc/kdc.conf):
 
 \ut{[kdcdefaults]\\
@@ -235,7 +235,7 @@ A \texttt{/etc/krb5kdc/kadm5.keytab} az admin keytab (kulcsokat tartalmazó fáj
   Entry for principal kadmin/changepw with kvno 4, encryption type DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
 }
 
-\subsection{Szolgáltatások hozzáadása}
+\section{Szolgáltatások hozzáadása}
 Tegyük fel, hogy a cyrus szervert szeretnénk beüzemelni. Neki külön keytab fájl kell, ezt a következőképpen tehetjük
 meg (kadmin vagy kadmin.local is jó):
 
@@ -252,7 +252,7 @@ Bármely további szolgáltatást hasonlóképpen, \emph{szolgáltatásnév/szer
 /etc/krb5.keytab.cyrus fájl a cyrus tulajdonában lévő, csak általa olvasható (és esetleg írható) fájl.
 
 
-\subsection{Jegyek igénylése, kezelése}
+\section{Jegyek igénylése, kezelése}
 Általában bejelentkezéskor kapunk egy jegyet, ahogy fentebb elhangzott, a \emph{tgt}-t, azonban néha szükség lehet
 arra, hogy menet közben ezt eldobjuk, vagy éppen másik realmból szeretnénk jegyet kapni.
 
@@ -291,7 +291,7 @@ A \texttt{kinit} egyik legfontosabb opciója a \texttt{-f} és a \texttt{-F}, az
 jelentkezni másik gépre is, ugyanis a jegy azonosít minket.
 
 
-\subsection{A pam beállítása}
+\section{A pam beállítása}
 Ahhoz, hogy bejelentkezéskor a kerberosban tárolt jelszavunkat használjuk, be kell állítani a PAM-ban a kerberos
 használatát.
 

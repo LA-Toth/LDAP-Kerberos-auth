@@ -1,4 +1,4 @@
-\section{Amavisd-New, ClamAV, SpamAssassin}
+\chapter{Amavisd-New, ClamAV, SpamAssassin}
 Az Amavisd-new egy általános célú levélszűrő, spam- és vírusszűrő programokat hív meg és az általuk adott válasz
 alapján eldönti, hogy az adott levél spam-e, vagy épp vírusos-e.
 
@@ -27,7 +27,7 @@ Illetve be kell állítani, hogy a könyvtár (\texttt{/var/amavis}) megfelelő 
 
 \ut{\# chown -R amavis:amavis /var/amavis}
 
-\subsection{A ClamAV beállítása}
+\section{A ClamAV beállítása}
 A ClamAV alapértelmezett konfigja csak példa, ezért egy hashmark (\#) karaktert kell az ``Example'' sor elé tenni:
 
 \ut{\# Example
@@ -38,7 +38,7 @@ A ClamAV alapértelmezett konfigja csak példa, ezért egy hashmark (\#) karakte
 A \textt{LocalSocket} ugyanaz legyen, mint ami az \texttt{/etc/amavisd.conf}-ban szerepel. Ha ez megvan, már
 működőképes a rendszer.
 
-\subsection{A Postfix beállítása az Amavisd-New használatára}
+\section{A Postfix beállítása az Amavisd-New használatára}
 
 A \texttt{/etc/postfix/master.cf} fájlban kell módosítani, az első három sor talán nem kell...
 

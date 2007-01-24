@@ -1,4 +1,4 @@
-\section{Az OpenLDAP}
+\chapter{Az OpenLDAP}
 
 Az itt ismertetett rendszer egyik központi része az OpenLDAP szerver, amely az LDAP protokollt ({\em Lightweight
   Directory Access Protocol}) valósítja meg. Ez egy ``könyvtárszolgáltatás''
@@ -9,7 +9,7 @@ optimalizált adatbázist használ az adatok tárolására. Az adatbázis lénye
 Az OpenLDAP szerverhez általában TCP/IP kapcsolaton keresztül lehet csatlakozni, azonban a helyi gépen (amelyen az
 ldap kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
 
-\subsection{Mi LDAP?}
+\section{Mi LDAP?}
 
 Az LDAP egy hierarchikusan (faszerkezetbe) szervezett adatbázis elérésére szolgáló protokoll. A fában tárolt adatokat
 egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja, amely név több részből áll, a  különböző részek alapján
@@ -23,7 +23,7 @@ A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúc
 tulajdonságok.
 
 
-\subsection{Telepítés, beállítás}
+\section{Telepítés, beállítás}
 Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatóak, melyet az
 \texttt{emerge openldap} paranccsal telepíthetünk Gentoo linux esetén, azonban például Debian alatt már több csomagból
 áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, egy minimális fastruktúrát létrehoz a \texttt{slapd.conf}
@@ -31,7 +31,7 @@ Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} 
 
 A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt, Debianban ez a \texttt{/etc/ldap}.
 
-\subsubsection{A /etc/openldap/slapd.conf}
+\subsection{A szerver beállítófájlja: a slapd.conf}
 A \texttt{slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
 
 \begin{itemize}
@@ -47,7 +47,7 @@ Figyeljünk arra, hogy ne olvashassa minenki ezt a fájlt!
 
 \paragraph{Séma} Az általunk használt séma az alábbi:
 
-\begin{Verbatim}
+\begin{Verbatim}[frame=single]
 include         /etc/openldap/schema/core.schema
 include         /etc/openldap/schema/cosine.schema
 include         /etc/openldap/schema/inetorgperson.schema
@@ -66,7 +66,7 @@ leírásában, vagy épp az interneten, mert esetleg sokkal bonyolultabb hozzáf
 
 A jelszót csak saját maga tudja írni, valamint az admin.
 
-\begin{Verbatim}
+\begin{Verbatim}[frame=single]
 access to attrs=userPassword
     by dn="cn=admin,dc=panthernet" write
     by anonymous auth
@@ -76,7 +76,7 @@ access to attrs=userPassword
 
 A következő két beállítás nagyjából azonos a jelenlegi esetben, csak az egyik szükséges!
 
-\begin{Verbatim}
+\begin{Verbatim}[frame=single]
 access to dn.children="ou=People,dc=panthernet"
         by dn="cn=admin,dc=panthernet" write
         by * read
@@ -100,7 +100,7 @@ adatbázist, a másik gépen pedig importálni. A faszerkezet gyökerét, aminek
 \texttt{suffix} beállítás tartalmazza. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
 azonosítja.
 
-\begin{Verbatim}
+\begin{Verbatim}[frame=single]
 database        bdb
 suffix          "dc=panthernet"
 rootdn          "cn=Manager,dc=panthernet"
@@ -132,7 +132,7 @@ egyező is.
 
 
 A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használata:\\
-\ut{slappasswd -h {SSHA}}
+\texttt{slappasswd -h {SSHA}}
 
 
 Az adatbázisról (\texttt{database} beállításról) mégegyzser: az adatbázis lehet többféle, a legegyszerűbb az
@@ -147,7 +147,7 @@ is hozzáférhet az adatokhoz, ha valahogyan meg tudja szerezni a kliens-szerver
 
 A TLS beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A beállítások a következők:
 
-\begin{Verbatim}
+\begin{Verbatim}[frame=single]
 TLSCACertificateFile /etc/openldap/ssl/cacert.pem
 TLSCertificateFile /etc/openldap/ssl/ldaps.panthernet.crt
 TLSCertificateKeyFile /etc/openldap/ssl/ldaps.panthernet.key
@@ -159,79 +159,95 @@ az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell
 tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
 
 
-Ha kerberossal hitelesített a felhasználó, aki hozzáfér a jelszóhoz és módosítja, akkor egy-egy rondább jelszót elég
-csak bejelentkezésenként egyszer megadni, minden egyéb szolgáltatásnál már nem szükséges.
+A Kerberos előnye, hogy egyszer kell a felhasználót hitelesíteni, utána hozzáférhet más szolgáltatásokhoz, anélkül, hogy
+megadná újból és újból a jelszavát. Az LDAP szerverhez történő hozzáférés is szabályozható a következőkben (valamint egy
+további opció is szerepel a példában):
 
 
-A maradék beállítás:
-
-\ut{sasl-realm panthernet\\
-  sasl-regexp uid=([\^,]+),.*cn=GSSAPI uid=\$1,ou=People,dc=panthernet\\
-  sasl-host zeratul.panthernet\\
-  LogLevel 0}
+\begin{Verbatim}[frame=single]
+sasl-realm panthernet
+sasl-regexp uid=([^,]+),.*cn=GSSAPI,.* uid=$1,ou=People,dc=panthernet
+sasl-host zeratul.panthernet
+LogLevel 0
+\end{Verbatim}
 
 A \texttt{LogLevel} mondja meg, mennyire bőbeszédűen (verbose) írja bele a syslogba, hogy mi történik. A ``0'' érték
 hatására szinte semmit sem ír, hibakeresésnél jön jól.
 
-A \texttt{sasl-realm} azt az ún. realm-ot határozza meg, amiben a kerberos bejegyzések vannak. A \texttt{sasl-host} a
-kiszolgáló helyét mondja meg, \texttt{sasl-regexp} pedig azt, hogy hogyan lehet megtalálni azt a bejegyzést, aki
-csatlakozott a szerverhez.
+A \texttt{sasl-realm} azt az ún. kerberos realm-ot határozza meg, amiben a kerberos bejegyzések vannak. A
+\texttt{sasl-host} a kiszolgáló helyét mondja meg, \texttt{sasl-regexp} pedig azt, hogy hogyan lehet megtalálni azt a
+bejegyzést, aki csatlakozott a szerverhez.
 
 
-\subsubsection{A /etc/openldap/ldap.conf}
+\subsection{Az ldap.conf}
+A szerverhez történő hozzáférés beállításait a \texttt{/etc/openldap/ldap.conf} állomány tartalmazza.
 Ez a fájl mondja meg, hogy az \texttt{ldapsearch}, és hasonló parancsok alapesetben milyen géphez, milyen protokollal
 és milyen végződésű helyhez (lásd a fentebbi \texttt{suffix}, itt \texttt{BASE}) csatlakozik. A fájl mindenki által
 olvasható.
 
-\ut{BASE    dc=panthernet\\
-  URI     ldaps://ldaps.panthernet\\
-  TLS\_CACERT /etc/openldap/ssl/cacert.pem }
+\begin{Verbatim}[frame=single,label=ldap.conf]
+BASE    dc=panthernet
+URI     ldaps://ldaps.panthernet
 
-A \texttt{BASE} az, ami alatt keres (részfát határoz meg), a \texttt{URI} azt, hogy titkosított protokollon (ldaps), az
-``ldaps.panthernet'' nevű gépen érhető el a szerver. A titkosítás miatt meg kell adni azt a helyet, ahol a CA
-tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
+TLS_CACERT /etc/openldap/ssl/cacert.pem
 
-\subsection{A rendszer felkészítése az ldap használatához}
+SASL_REALM panthernet
+\end{Verbatim}
+
+
+A \texttt{BASE} az, amely alatti bejegyzéseken történik a keresés (részfát határoz meg), a \texttt{URI} azt, hogy
+titkosított protokollon (ldaps), az ``ldaps.panthernet'' nevű gépen érhető el a szerver. A titkosítás miatt meg kell
+adni azt a helyet, ahol a CA tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
+
+\section{A rendszer felkészítése az ldap használatához}
 A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az ldapban tárolt
 felhasználók ténylegesen létezhessenek az adott gépen, fel kell rakni az ``nss\_ldap'' csomagot. Általában az ldap
 szerver különálló gépen található, de nincs mindig így, ezért néha azon is be kell állítani a csomagot
 (\filename{/etc/ldap.conf} tartalmazza a beállításait).
 
-\subsubsection{nss-ldap}
-A \filename{/etc/ldap.conf} néhány fontos beállítása:
+\subsection{nss-ldap}
+A névfeloldáshoz és az ldapban tárolt jelszavak kezeléséhez nélkülönözhetetlen az \texttt{nss-ldap} csomag. A
+beállítófájlja a \filename{/etc/ldap.conf}, ennek néhány fontosabb beállítása:
 
-\ut{base dc=panthernet\\
-  uri ldaps://ldaps.panthernet/\\
-  \# The distinguished name to bind to the server with.\\
-  \# Optional: default is to bind anonymously.\\
-  \#binddn cn=proxyuser,dc=padl,dc=com\\
-  \\
-  \# The credentials to bind with.\\
-  \# Optional: default is no credential.\\
-  \#bindpw secret}
+\begin{Verbatim}[frame=single,label=/etc/ldap.conf részlet]
+base dc=panthernet
+uri ldaps://ldaps.panthernet/
+# The distinguished name to bind to the server with.\\
+#Optional: default is to bind anonymously.\\
+#binddn cn=proxyuser,dc=padl,dc=com\\
+  
+# The credentials to bind with.
+# Optional: default is no credential.
+#bindpw secret
+\end{Verbatim}
 
-Az első kettő lényeges. Ez egyik szerver elérését mondja meg (\texttt{uri}): ldaps, azaz titkosított, utána a gép neve,
-a másik, a \texttt{base} pedig a faszerkezet egy csúcsát, ami alatt keres a rendszer (\texttt{ou=People},
-\texttt{ou=Group}).
+Az első kettő lényeges minden esetben.Az egyik a szerver elérését mondja meg (\texttt{uri}): ldaps, azaz titkosított,
+utána a gép neve, a másik, a \texttt{base} pedig a faszerkezet egy csúcsát, ami alatt keres a rendszer
+(\texttt{ou=People}, \texttt{ou=Group}). A rendszeren talál
 
 A \texttt{binddn} és a \texttt{bindpw} segítségével elérhető, hogy névtelenül ne lehessen a szerverhez csatlakozni,
 onnan információkat gyűjteni, csak az itt megadott ``felhasználó'' és jelszó tudjon. Igazából a fa bármely csúcsa
 lehet, ha annak van joga olvasni szinte bármit, kivéve például a \texttt{userPassword} tulajdonságot. Ehhez a sor
 eleji ``\#'' karaktert (megjegyzés jele) ki kell törölni, és érvényes adatot írni a helyére.
 
-A fájl többi részét nem kell (de lehet) módosítani.
+A fájl többi részét nem szükséges módosítani.
 
 
 \paragraph{nsswitch.conf} Az ldap szerverhez történő csatlakozást a fentebb látható módon garantáltuk, de ez
 kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a \filename{/etc/nsswitch.conf} fájl
 módosításával tehető meg.
 
-\ut{\begin{tabular}{ll}passwd:& files ldap\\
-    shadow:& files ldap\\
-    group: & files ldap\end{tabular}}
+\begin{Verbatim}[frame=single]
+passwd:      files ldap
+shadow:      files ldap
+group:       files ldap
+\end{Verbatim}
 
 Vagyis a jelszavakat, shadow jelszavakat és a csoportokat egyrészt a helyi fájlokból, másrészt ldapból olvassa ki (az
 elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
+
+Ha nem akarjuk, hogy az LDAP-ban tárolt jelszavakat használja a rendzser, akkor a \texttt{passwd} beállításnál nem
+szükséges a \texttt{ldap} megadása
 
 \subsection{Az adatok feltöltése}
 Ha ideiglenesen a TLS-re és a Kerberos (SASL) realm-ra vonatkozó információkat kivesszük, akkor már most tesztelhető a
@@ -243,7 +259,7 @@ kézzel kell (érdemes) létrehozni a fát, utána már lehet szkriptekkel is be
 
 
 
-\subsubsection{Az LDAP bejegyzések hozzáadása}
+\subsection{Az LDAP bejegyzések hozzáadása}
 
 Az ldap a bejegyzéseket LDIF formátumban jeleníti meg (például az ldapsearch és slapcat parancsok kimenete ilyen), és
 ezt a formátumot használva lehet adminisztrálni is. Ezért az összes bejegyzés (csúcs) ilyen formában van itt is.
@@ -355,7 +371,6 @@ Illetve:
   uidNumber: 1001\\
   gidNumber: 100}
 
-\newpage
 Az email aliasokat tartalmazó ág csúcsa:
 
 \ut{ dn: ou=MailAliases,dc=panthernet\\
@@ -399,7 +414,7 @@ Ezeket a bejegyzéseket fájlba mentve egyből hozzáadhatjuk a futó ldap szerv
 
 
 
-\subsubsection{Az LDAP bejegyzések módosítása}
+\subsection{Az LDAP bejegyzések módosítása}
 
 A módosításokat is LDIF formában kell megadni, a használt parancs:
 \texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
@@ -411,7 +426,6 @@ Attribútum hozzáadása:
   add: userPassword\\
   userPassword: \{KERBEROS\}panther@PANTHERNET\}}
 
-\newpage
 Lehet törölni is egy attribútumot, például:
 
 \ut{dn: uid=panther,ou=People,dc=panthernet\\

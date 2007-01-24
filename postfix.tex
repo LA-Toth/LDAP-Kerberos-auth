@@ -1,6 +1,6 @@
-\section{Postfix}
+\chapter{Postfix}
 
-\subsection{/etc/postfix/main.cf}
+\section{/etc/postfix/main.cf}
 A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén myilen
 gépnevet adjon meg...
 
@@ -34,7 +34,7 @@ részéhez tartozó MX dns bejegyzésből vesz).
 Az \texttt{alias\_maps} mondja meg, hogy egy adott email címhez tartozó levelek hova továbbítódjanak. Itt most az
 \filename{aliases} fájlban találhatóak, valamint ldap-ban, a két fájl különböző beállításokat tartalmaz.
 
-\subsection{/etc/mail/aliases}
+\section{/etc/mail/aliases}
 Debian rendszereken ennek a fájlnak a helye: \filename{/etc/aliases}.
 
 Formátumra részlet:\\
@@ -53,7 +53,7 @@ a \texttt{/usr/bin/newaliases} paranccsal tehető meg. A létrehozott fájl: /et
 
 
 
-\subsection{/etc/postfix/ldapaliases.cf}
+\section{/etc/postfix/ldapaliases.cf}
 Az ldap-ban történő keresést az alábbi szerkezetű fájl teszi lehetővé.
 
 \ut{server\_host = ldap://ldaps.panthernet:389\\

@@ -1,4 +1,4 @@
-\section{SSL, OpenLDAP, SASL beállítása}
+\chapter{SSL, OpenLDAP, SASL beállítása}
 Az OpenLDAP is támogatja a Kerberost, ehhez neki is meg kell adni egy keytab fájlt. A szolgáltatásnév
 \texttt{ldap/gepnev}. Például:
 
@@ -33,8 +33,8 @@ Azzal együtt már működik:
 \ut{\$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}}
 
 
-\section{Levelezőkliensek beállítása}
-\subsection{Mutt}
+\chapter{Levelezőkliensek beállítása}
+\section{Mutt}
 A mutt rendszerszintű beállítófájljában, a \texttt{/etc/mutt/Muttrc}-ben a következőket állítjuk be:
 
 \ut{set certificate\_file="/etc/openldap/ssl/cacert.pem"\\
