@@ -1,6 +1,6 @@
-\chapter{Az OpenLDAP}
+\chapter{Az LDAP és az OpenLDAP kiszolgáló}
 
-Az itt ismertetett rendszer egyik központi része az OpenLDAP szerver, amely az LDAP protokollt ({\em Lightweight
+A dokumentumban ismertetett rendszer egyik központi része az OpenLDAP szerver, amely az LDAP protokollt ({\em Lightweight
   Directory Access Protocol}) valósítja meg. Ez egy ``könyvtárszolgáltatás''
 (directory service) elérésére szolgál, amelynek jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
 optimalizált adatbázist használ az adatok tárolására. Az adatbázis lényegében \emph{bármilyen adatot} tartalmhazhat
@@ -9,8 +9,11 @@ optimalizált adatbázist használ az adatok tárolására. Az adatbázis lénye
 Az OpenLDAP szerverhez általában TCP/IP kapcsolaton keresztül lehet csatlakozni, azonban a helyi gépen (amelyen az
 ldap kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
 
-\section{Mi LDAP?}
+A következőkben az LDAP szerver alapvető beállítását, majd pedig a rendszer kibővítését titkosítással,
+Kerberos alapú hitelesítéssel, végül pedig a szerver adatvbázisának replikálását olvashatjuk.
+\section{Mi is az LDAP?}
 
+A legelső kérdés, hogy mi az LDAP?
 Az LDAP egy hierarchikusan (faszerkezetbe) szervezett adatbázis elérésére szolgáló protokoll. A fában tárolt adatokat
 egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja, amely név több részből áll, a  különböző részek alapján
 történik a bejegyzések (objektumok) fába szervezése. Minden bejegyzéshez tartozik egy vagy több
@@ -23,16 +26,16 @@ A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúc
 tulajdonságok.
 
 
-\section{Telepítés, beállítás}
+\section{Telepítés}
 Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatóak, melyet az
 \texttt{emerge openldap} paranccsal telepíthetünk Gentoo linux esetén, azonban például Debian alatt már több csomagból
-áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, egy minimális fastruktúrát létrehoz a \texttt{slapd.conf}
-állománnyal együtt, amit a Gentoo nem tesz meg.
+áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, s a telepítő egy minimális fastruktúrát létrehoz a \texttt{slapd.conf}
+állománnyal együtt, ezeket azonban Gentoo-n nekünk kell megtennünk.
 
 A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt, Debianban ez a \texttt{/etc/ldap}.
 
-\subsection{A szerver beállítófájlja: a slapd.conf}
-A \texttt{slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
+\section{A szerver beállítófájlja: a slapd.conf}
+A \texttt{/etc/openldap/slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
 
 \begin{itemize}
 \item Sémák (a használható attribútumokat adják meg)
@@ -118,7 +121,10 @@ checkpoint      32      30 # <kbyte> <min>
 directory       /var/lib/openldap-data
 # Indices to maintain
 index   objectClass     eq
+#
+LogLevel 0
 \end{Verbatim}
+
 
 Mint látható, a jelszót is meg kell adni. Lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
 célszerű, ugyanis ha esetleg valami hiba folytán a \texttt{slapd.conf} állományt más is olvashatja, akkor azonnal
@@ -140,46 +146,10 @@ Az adatbázisról (\texttt{database} beállításról) mégegyzser: az adatbázi
 beállításnak megfelelelő könyvtárban lesznek. A könyvtárra a \texttt{700} jogot ajánlott megadni, hogy ne tudja a
 könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a  kereséshez használt index.
 
-\paragraph{Kerberos, TLS, és ami még kimaradt} Az eddigiek alapján nagyjából működőképes a rendszerünk, azonban vannak
-hiányosságai. Az egyik az, hogy a szerver és a kliens között titkosítatlan a kommunikáció, ezért egy harmadik személy
-is hozzáférhet az adatokhoz, ha valahogyan meg tudja szerezni a kliens-szerver kapcsolat csomagjait. A szerver a TLS
-(és SSL) titkosítást támogatja (Transport Layer Security és Secure Socket Layer kifejezések rövidítései).
-
-A TLS beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A beállítások a következők:
-
-\begin{Verbatim}[frame=single]
-TLSCACertificateFile /etc/openldap/ssl/cacert.pem
-TLSCertificateFile /etc/openldap/ssl/ldaps.panthernet.crt
-TLSCertificateKeyFile /etc/openldap/ssl/ldaps.panthernet.key
-#TLSCipherSuite HIGH,MEDIUM
-\end{Verbatim}  
-
-Az első sor jelzi a tanúsítvány-kiszolgáló (CA) tanúsítványát (certificate). A második az openldapét, a harmadik pedig
-az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
-tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
-
-
-A Kerberos előnye, hogy egyszer kell a felhasználót hitelesíteni, utána hozzáférhet más szolgáltatásokhoz, anélkül, hogy
-megadná újból és újból a jelszavát. Az LDAP szerverhez történő hozzáférés is szabályozható a következőkben (valamint egy
-további opció is szerepel a példában):
-
-
-\begin{Verbatim}[frame=single]
-sasl-realm panthernet
-sasl-regexp uid=([^,]+),.*cn=GSSAPI,.* uid=$1,ou=People,dc=panthernet
-sasl-host zeratul.panthernet
-LogLevel 0
-\end{Verbatim}
-
 A \texttt{LogLevel} mondja meg, mennyire bőbeszédűen (verbose) írja bele a syslogba, hogy mi történik. A ``0'' érték
 hatására szinte semmit sem ír, hibakeresésnél jön jól.
 
-A \texttt{sasl-realm} azt az ún. kerberos realm-ot határozza meg, amiben a kerberos bejegyzések vannak. A
-\texttt{sasl-host} a kiszolgáló helyét mondja meg, \texttt{sasl-regexp} pedig azt, hogy hogyan lehet megtalálni azt a
-bejegyzést, aki csatlakozott a szerverhez.
-
-
-\subsection{Az ldap.conf}
+\section{Az ldap.conf}
 A szerverhez történő hozzáférés beállításait a \texttt{/etc/openldap/ldap.conf} állomány tartalmazza.
 Ez a fájl mondja meg, hogy az \texttt{ldapsearch}, és hasonló parancsok alapesetben milyen géphez, milyen protokollal
 és milyen végződésű helyhez (lásd a fentebbi \texttt{suffix}, itt \texttt{BASE}) csatlakozik. A fájl mindenki által
@@ -195,13 +165,15 @@ SASL_REALM panthernet
 \end{Verbatim}
 
 
-A \texttt{BASE} az, amely alatti bejegyzéseken történik a keresés (részfát határoz meg), a \texttt{URI} azt, hogy
-titkosított protokollon (ldaps), az ``ldaps.panthernet'' nevű gépen érhető el a szerver. A titkosítás miatt meg kell
-adni azt a helyet, ahol a CA tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
+A \texttt{BASE} után a faszerkezet valamely csúcsának egyedi nevét kell megadni, amely alatti bejegyzéseken történik a
+keresés (tehát részfát határoz meg). Az \texttt{URI} a szerver elérését adja meg protokollal együtt. A példában
+a titkosított protokoll (ldaps) szerepel, az ``ldaps.panthernet'' nevű gépen érhető el a szerver, a titkosítás miatt meg
+kell adni azt a helyet, ahol a CA tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
 
 \section{A rendszer felkészítése az ldap használatához}
 A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az ldapban tárolt
-felhasználók ténylegesen létezhessenek az adott gépen, fel kell rakni az ``nss\_ldap'' csomagot. Általában az ldap
+felhasználók ténylegesen létezhessenek az adott gépen (pl. az \texttt{id} parancs lássa őket), fel kell telepíteni 
+az ``nss\_ldap'' csomagot. Általában az ldap
 szerver különálló gépen található, de nincs mindig így, ezért néha azon is be kell állítani a csomagot
 (\filename{/etc/ldap.conf} tartalmazza a beállításait).
 
@@ -212,9 +184,9 @@ beállítófájlja a \filename{/etc/ldap.conf}, ennek néhány fontosabb beáll�
 \begin{Verbatim}[frame=single,label=/etc/ldap.conf részlet]
 base dc=panthernet
 uri ldaps://ldaps.panthernet/
-# The distinguished name to bind to the server with.\\
-#Optional: default is to bind anonymously.\\
-#binddn cn=proxyuser,dc=padl,dc=com\\
+# The distinguished name to bind to the server with.
+#Optional: default is to bind anonymously.
+#binddn cn=proxyuser,dc=padl,dc=com
   
 # The credentials to bind with.
 # Optional: default is no credential.
@@ -237,7 +209,7 @@ A fájl többi részét nem szükséges módosítani.
 kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a \filename{/etc/nsswitch.conf} fájl
 módosításával tehető meg.
 
-\begin{Verbatim}[frame=single]
+\begin{Verbatim}[frame=single,label=/etc/nsswitch.conf ldapot használó része]
 passwd:      files ldap
 shadow:      files ldap
 group:       files ldap
@@ -249,72 +221,128 @@ elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
 Ha nem akarjuk, hogy az LDAP-ban tárolt jelszavakat használja a rendzser, akkor a \texttt{passwd} beállításnál nem
 szükséges a \texttt{ldap} megadása
 
-\subsection{Az adatok feltöltése}
-Ha ideiglenesen a TLS-re és a Kerberos (SASL) realm-ra vonatkozó információkat kivesszük, akkor már most tesztelhető a
-rendszer a következő utasítással (keresés), ami ``üres'' kimenetet ad.\\
-\texttt{ldapsearch -x}
+\section{Az adatok feltöltése}
+Egyelőre még egy teljesen üres adatbázisunk van, viszont már minden megvan ahhoz, hogy a teljes rendszer működjön. Akár
+le is kérdezhetjük az adatbázis tartalmát az \texttt{ldapsearch -x} parancs kiadásával. Természetesen a kimenet üres
+lesz (pár megjegyzést nem számítva).
 
 A mostani példában felhasználók, csoportok és email aliasok (álnevek) szerepelnek. Az ezek szülőcsúcsáig bezárólag
 kézzel kell (érdemes) létrehozni a fát, utána már lehet szkriptekkel is beszúrni az adatokat.
 
 
 
-\subsection{Az LDAP bejegyzések hozzáadása}
+\subsection{Egy LDAP bejegyzések hozzáadása}
 
 Az ldap a bejegyzéseket LDIF formátumban jeleníti meg (például az ldapsearch és slapcat parancsok kimenete ilyen), és
 ezt a formátumot használva lehet adminisztrálni is. Ezért az összes bejegyzés (csúcs) ilyen formában van itt is.
 
-A \texttt{dc} az egyedi név, az \texttt{o} a szervezet (organization) rövidítése. A fenti objektum (csúcs) a fa
-gyökere:
+Ha elkészítettük a fájlt, amiben az LDIF bejegyzés(ek) van(nak), akkor az \texttt{ldapadd} paranccsal hozzá lehet adni:\\
+\texttt{ldapadd -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
 
-\ut{dn: dc=panthernet\\
-  objectClass: dcObject\\
-  objectClass: organization\\
-  dc: panthernet\\
-  o: PantherNetwork}
+Természetesen csak a legelső elemeket érdemes így létrehozni, utána pedig már másik felhasználót (a \texttt{-D} után egy
+másik bejegyzés, csúcs nevét) érdemes megadni.
 
 
-Ez a \filename{slapd.conf} fájlban definiált ``felhasználó''. Valójában nem is felhasználó, ezért is más az
-objectClass. Kettő is van neki, a második (\texttt{top}) csak annyit jelent, hogy az objektumnak lehetnek
-gyerekei. Ezért ez egy felesleges objectClass, de nem helytelen.
+\subsection{Az alapvető bejegyzések}
 
-\ut{dn: cn=Manager,dc=panthernet\\
-  objectClass: organizationalRole\\
-  objectClass: top\\
-  cn: Manager}
+Az alapvető bejegyzések a gyökértől kezdődően lefelé a csoportokat definiáló csúcsokig tartanak, valamint az admin és
+Manager kitüntetett felhasználók (lehet, hogy a Manager felesleges is, ámde így biztosan működik).
 
-A Manager-től független adminisztrátori jogokkal rendelkező bejegyzés. Nem kötelező, mégis jobb, ha szét vannak
-választva a jogosultságok, akár több részre is.\\ A \texttt{simpleSecurityObject} tartalmazza a \texttt{userPassword}
-tulajdonságot. A \texttt{description} mező pedig a leírás, melyet bármely objektum tartalmazhat.
+Tekintsük először a gyökeret, s annak tulajdonságait.
+A \texttt{dc} az egyedi név, az \texttt{o} a szervezet (organization) rövidítése.
 
-\ut{dn: cn=admin,dc=panthernet\\
-  objectClass: organizationalRole\\
-  objectClass: simpleSecurityObject\\
-  cn: admin\\
-  description: LDAP administrator\\
-  userPassword: {SSHA}blabla}
+\begin{Verbatim}[frame=single]
+dn: dc=panthernet
+objectClass: dcObject
+objectClass: organization
+dc: panthernet
+o: PantherNetwork  
+\end{Verbatim}
 
 
-Ez a bejegyzés alá kerül az összes (valódi) felhasználó. Szervezeti egységet jelent az \textt{organizationalUnit}:
+\noindent A következő \filename{slapd.conf} fájlban definiált ``felhasználó''. Az idézőjel oka, hogy valójában nem is
+felhasználó, ezért is más az objectClass. Kettő is van neki, a második (\texttt{top}) csak annyit jelent, hogy az
+objektumnak lehetnek gyerekei (bizonyos esetekben szükséges, bizonyos esetekben meg nem, ez erősen függ a többi megadott
+objectClass tulajdonságtól). Ezért a \texttt{top} egy felesleges objectClass, de nem helytelen. Lehet, hogy enélkül is
+menne a rendszer...
 
-\ut{dn: ou=People,dc=panthernet\\
-  objectClass: organizationalUnit\\
-  ou: People}
 
-A következő egy felhasználói bejegyzés. Nagyon sok tulajdonság kitöltetlen. A \texttt{top} jelentése már elhangzott.
+\begin{Verbatim}[frame=single]
+dn: cn=Manager,dc=panthernet
+objectClass: organizationalRole
+objectClass: top
+cn: Manager
+\end{Verbatim}
 
-Az \texttt{inetorgPerson} többek között a következő opcionális tulajdonságokat határozza meg (inetorgperson.schema):
+\noindent Most tekintsük az admin felhasználó bejegyzését, mely a Manager-től független adminisztrátori jogokkal
+rendelkezik. Nem kötelező, mégis jobb, ha szét vannak választva a jogosultságok, akár több részre is. A
+\texttt{simpleSecurityObject} tartalmazza a \texttt{userPassword} tulajdonságot, vagyis lehet lehet hitelesíteni
+(jelszót ellenőrizni). A \texttt{description} mező pedig a leírás, melyet bármely objektum tartalmazhat, ámde használata
+opcionális.
+
+
+\begin{Verbatim}[frame=single]
+dn: cn=admin,dc=panthernet
+objectClass: organizationalRole
+objectClass: simpleSecurityObject
+cn: admin
+description: LDAP administrator
+userPassword: {SSHA}blabla
+\end{Verbatim}
+
+
+\noindent A rendszeren létező összes (valódi) felhasználó egyetlen bejegyzés alá kerül, ez pedig a következő lesz, ahol
+szervezeti egységet jelent az \textt{organizationalUnit}:
+
+\begin{Verbatim}[frame=single]
+dn: ou=People,dc=panthernet
+objectClass: organizationalUnit
+ou: People  
+\end{Verbatim}
+
+
+\noindent Az email aliasokat tartalmazó ág csúcsa:
+
+\begin{Verbatim}[frame=single]
+dn: ou=MailAliases,dc=panthernet
+ou: MailAliases
+objectClass: top
+objectClass: organizationalUnit
+\end{Verbatim}
+
+
+\noindent A csoportokat tartalmazó szervezeti egység:
+
+\begin{Verbatim}[frame=single]
+dn: ou=Group,dc=panthernet
+objectClass: organizationalUnit
+ou: Group
+\end{Verbatim}
+
+
+
+\subsection{A többi bejegyzés}
+Az előbb ismertetett bejegyzéseket létrehozva meg van minden, hogy felhasználókat létrehozzunk, sőt, bármilyen
+információt tárolhatunk az LDAP szerveren, bár most nem célunk. Eddig csak a Manager (azaz a \texttt{rootdn}) tudott
+létrehozni csúcsokat, most már megtehetjük ezt az általunk létrehozott admin felhasználó segítségével.
+
+
+Az első kettő egy-egy felhasználói bejegyzés (nagyjából így definiáltam a felhasználómat a notebookomon).
+A példában nagyon sok tulajdonság kitöltetlen. Először tekintsük át, milyen osztályokba tartozik a felhasználó, és
+melyek az egyes osztályok lényegesebb tulajdonságai.
+
+Az \texttt{inetorgPerson} többek között a következő opcionális tulajdonságokat határozza meg
+(\texttt{inetorgperson.schema}):
 \texttt{homePhone}, \texttt{homePostalAddress}, \texttt{initials}, \texttt{mail},  \texttt{mobile},
 \texttt{roomNumber}, \texttt{uid}.
 
 A \textt{person} (\texttt{core.schema}) esetén az \texttt{sn}, \texttt{cn} attribútumokat kötelező definiálni
-(vezetéknév az sn). Opcionális többek között: \texttt{ userPassword}, \texttt{telephoneNumber}.
-
+(vezetéknév az \texttt{sn}). Opcionális többek között: \texttt{ userPassword}, \texttt{telephoneNumber}.
 
 Az \texttt{organizationalPerson} valamilyen szervezethez tartozó személyt jelent. Itt többek között
 \texttt{telephoneNumber}, \texttt{ou} (azaz a szervezeti egység), \texttt{postalAddress} tulajdonságok szerepelnek.
 
-A \texttt{inetLocalMailRecipient} a misc.schema-ban definiált, \texttt{mailLocalAddress}, \texttt{mailHost} ,
+A \texttt{inetLocalMailRecipient} a misc.schema-ban definiált, \texttt{mailLocalAddress}, \texttt{mailHost},
 \texttt{mailRoutingAddress} az opcionális tulajdonságai. Ebből az első az, amire érkeznek a levelek, az utolsó meg
 amire mennek. Ha helyi fiók (pl. panther), akkor a levelezőszervernek (pl. Cyrus) továbbítódik, különben a megadott
 címre.
@@ -322,127 +350,202 @@ címre.
 A \texttt{posixAccount} és \texttt{shadowAccount} tartalmazza a \texttt{/etc/passwd} és \texttt{/etc/shadow} fájlban
 is megtalálható információjat.
 
+Ha a jelszavakat nem szeretnénk Kerberosban tárolni, ámde LDAP-ban igen, akkor még egy osztályt meg kell adnunk, ez
+pedig a \texttt{shadowAccount}. Most nincs szükségünk rá.
 
-\ut{dn: uid=panther,ou=People,dc=panthernet\\
-  objectClass: top\\
-  objectClass: person\\
-  objectClass: inetOrgPerson\\
-  objectClass: organizationalPerson\\
-  objectClass: inetLocalMailRecipient\\
-  objectClass: posixAccount\\
-  objectClass: shadowAccount\\
-  cn:: VMOzdGggTMOhc3psw7MgQXR0aWxh\\
-  cn:: TMOhc3psw7MgQXR0aWxhIFTDs3Ro\\
-  uid: panther\\
-  mobile: 06\\
-  homePostalAddress: Erd\\
-  mailRoutingAddress: panther\\
-  mailLocalAddress: Toth.Laszlo.Attila\\
-  mailLocalAddress: Laszlo.Attila.Toth\\
-  gecos: Toth Laszlo Attila\\
-  sn:: VMOzdGg=\\
-  homeDirectory: /home/panther\\
-  loginShell: /bin/bash\\
-  uidNumber: 1000\\
-  gidNumber: 100\\
-  givenName:: TMOhc3psw7MgQXR0aWxh}
+Mivel a nevem ékezeteket is tartalmaz, ezért UTF-8-ban megadtam, majd pedig Base64-gyel kódoltam az egyes mezők
+értékét. Emiatt ezeknél a mezőknél nem egy, hanem két kettőspont szerepel.
 
-Illetve:
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: inetLocalMailRecipient
+objectClass: posixAccount
+cn:: VMOzdGggTMOhc3psw7MgQXR0aWxh
+cn:: TMOhc3psw7MgQXR0aWxhIFTDs3Ro
+uid: panther
+mobile: 06
+homePostalAddress: Erd
+mailRoutingAddress: panther
+mailLocalAddress: Toth.Laszlo.Attila
+mailLocalAddress: Laszlo.Attila.Toth
+gecos: Toth Laszlo Attila
+sn:: VMOzdGg=
+homeDirectory: /home/panther
+loginShell: /bin/bash
+uidNumber: 1000
+gidNumber: 100
+ givenName:: TMOhc3psw7MgQXR0aWxh
+\end{Verbatim}
 
-\ut{dn: uid=parad,ou=People,dc=panthernet\\
-  objectClass: top\\
-  objectClass: person\\
-  objectClass: inetOrgPerson\\
-  objectClass: organizationalPerson\\
-  objectClass: inetLocalMailRecipient\\
-  objectClass: posixAccount\\
-  objectClass: shadowAccount\\
-  cn: Nagy Adrienn\\
-  cn: Adrienn Nagy\\
-  gecos: Nagy Adrienn\\
-  sn: Nagy\\
-  givenName: Adrienn\\
-  uid: parad\\
-  mailRoutingAddress: parad\\
-  mailLocalAddress: Nagy.Adrienn\\
-  mailLocalAddress: Adrienn.Nagy\\
-  homeDirectory: /home/parad\\
-  loginShell: /bin/bash\\
-  uidNumber: 1001\\
-  gidNumber: 100}
+\noindent illetve
 
-Az email aliasokat tartalmazó ág csúcsa:
+\begin{Verbatim}[frame=single]
+dn: uid=parad,ou=People,dc=panthernet
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: inetLocalMailRecipient
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: Nagy Adrienn
+cn: Adrienn Nagy
+gecos: Nagy Adrienn
+sn: Nagy
+givenName: Adrienn
+uid: parad
+mailRoutingAddress: parad
+mailLocalAddress: Nagy.Adrienn
+mailLocalAddress: Adrienn.Nagy
+homeDirectory: /home/parad
+loginShell: /bin/bash
+uidNumber: 1001
+gidNumber: 100
+\end{Verbatim}
 
-\ut{ dn: ou=MailAliases,dc=panthernet\\
-  ou: MailAliases\\
-  objectClass: top\\
-  objectClass: organizationalUnit
-}
+\noindent Csoportokat is létrehozhatunk, ahol felsorolhatjuk a tagokat is uid szerint:
 
-Egy alias az account objectClass az uid attribútum miatt kell. A mailRoutingAddress-ben szóközzel elválasztott címekre
-továbbítódik a levél:
-
-\ut{dn: uid=mindenki,ou=MailAliases,dc=panthernet\\
-  objectClass: account\\
-  objectClass: top\\
-  objectClass: inetLocalMailRecipient\\
-  mailLocalAddress: mindenki\\
-  mailLocalAddress: everyone\\
-  mailLocalAddress: everybody\\
-  uid: mindenki\\
-  mailRoutingAddress: panther}
-
-A csoportokat tartalmazó szervezeti egység:
-
-\ut{dn: ou=Group,dc=panthernet\\
-  objectClass: organizationalUnit\\
-  ou: Group}
-
-Egy csoportbejegyzés (több felhasználó is a tagja):
-
-\ut{dn: cn=testgrp,ou=Group,dc=panthernet\\
-  objectClass: top\\
-  objectClass: posixGroup\\
-  cn: testgrp\\
-  gidNumber: 10000\\
-  memberUid: panther\\
-  memberUid: parad}
+\begin{Verbatim}[frame=single]
+dn: cn=testgrp,ou=Group,dc=panthernet
+objectClass: top
+objectClass: posixGroup
+cn: testgrp
+gidNumber: 10000
+memberUid: panther
+memberUid: parad
+\end{Verbatim}
 
 
-Ezeket a bejegyzéseket fájlba mentve egyből hozzáadhatjuk a futó ldap szerverhez kapcsolódva:\\
-\texttt{ldapadd -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+Végezetül lássunk egy példát a levelezésben használt álnevekre. A bejegyzés akár több álnevet is tartalmazhat
+(\texttt{mailLocalAddress} tulajdonság), és akár több címre is továbbítódhat. Ez utóbbit a \texttt{mailRoutingAddress}
+tulajdonsággal adhatjuk meg, amelyből az előzővel ellentétben egyetlen egy lehet, és az összes címzettet szóközzel
+elválasztva meg kell adni utána.
 
+\begin{Verbatim}[frame=single]
+dn: uid=mindenki,ou=MailAliases,dc=panthernet
+objectClass: account
+objectClass: top
+objectClass: inetLocalMailRecipient
+mailLocalAddress: mindenki
+mailLocalAddress: everyone
+mailLocalAddress: everybody
+uid: mindenki
+mailRoutingAddress: panther parad
+\end{Verbatim}
 
 
 \subsection{Az LDAP bejegyzések módosítása}
 
-A módosításokat is LDIF formában kell megadni, a használt parancs:
-\texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+Sokszor menet közben kell felvenni újabb adatokat, vagy meglévőket módosítani, esetleg törölni néhányat. Ezt mind a
+következő paranccsal tehetjük meg: \texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
 
-Attribútum hozzáadása:
+Nézzük sorra, hogy mit hogyan lehet:
 
-\ut{dn: uid=panther,ou=People,dc=panthernet\\
-  changeType: modify\\
-  add: userPassword\\
-  userPassword: \{KERBEROS\}panther@PANTHERNET\}}
+\begin{itemize}
+  \item Attribútum hozzáadása:
 
-Lehet törölni is egy attribútumot, például:
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+add: userPassword
+userPassword: {KERBEROS}panther@PANTHERNET
+\end{Verbatim}
 
-\ut{dn: uid=panther,ou=People,dc=panthernet\\
-  changeType: modify\\
-  delete: userPassword}
+\item Attribútum cseréje:
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+replace: userPassword
+userPassword: \{KERBEROS\}panther2@PANTHERNET\}}
+\end{Verbatim}
 
-Ha egy adott attribútumot (amiből több különböző értékű is lehet) kellene, akkor:
+\item Lehet törölni is egy attribútumot, például:
 
-\ut{dn: uid=panther,ou=People,dc=panthernet\\
-  changeType: modify\\
-  delete: mail\\
-  mail: panther@elte.hu}
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+delete: userPassword
+\end{Verbatim}
 
-A teljes bejegyzés törlése:
 
-\ut{dn: uid=panther,ou=People,dc=panthernet\\
-  changeType: delete}
+\item Ha egy adott attribútumot (amiből több különböző értékű is lehet) kellene, akkor:
+
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+delete: mail
+mail: panther@elte.hu
+\end{Verbatim}
+
+\item Több is egyszerre:
+
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+add: userPassword
+userPassword: {KERBEROS}panther@PANTHERNET
+-
+replace: homePostalAddress
+homePostalAddress: Erd, stb.
+\end{Verbatim}
+
+\item A teljes bejegyzés törlése:
+  
+\begin{Verbatim}[frame=single]
+dn: uid=panther,ou=People,dc=panthernet
+changeType: delete
+\end{Verbatim}
+
+\end{itemize}
+
+
+
+
+
+\section{Titkosítás}
+
+Az eddigiek alapján nagyjából működőképes a rendszerünk, azonban vannak
+hiányosságai. Az egyik az, hogy a szerver és a kliens között titkosítatlan a kommunikáció, ezért egy harmadik személy
+is hozzáférhet az adatokhoz, ha valahogyan meg tudja szerezni a kliens-szerver kapcsolat csomagjait. A szerver a TLS
+(és SSL) titkosítást támogatja (Transport Layer Security és Secure Socket Layer kifejezések rövidítései).
+
+A TLS beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A beállítások a következők:
+
+\begin{Verbatim}[frame=single]
+TLSCACertificateFile /etc/openldap/ssl/cacert.pem
+TLSCertificateFile /etc/openldap/ssl/ldaps.panthernet.crt
+TLSCertificateKeyFile /etc/openldap/ssl/ldaps.panthernet.key
+#TLSCipherSuite HIGH,MEDIUM
+\end{Verbatim}  
+
+Az első sor jelzi a tanúsítvány-kiszolgáló (CA) tanúsítványát (certificate). A második az openldapét, a harmadik pedig
+az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
+tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
+
+
+\section{Replikáció}
+
+TODO
+
+\section{Kerberos}
+
+A Kerberos előnye, hogy egyszer kell a felhasználót hitelesíteni, utána hozzáférhet más szolgáltatásokhoz, anélkül, hogy
+megadná újból és újból a jelszavát. Az LDAP szerverhez történő hozzáférés is szabályozható a következőkben (valamint egy
+további opció is szerepel a példában):
+
+\begin{Verbatim}[frame=single]
+sasl-realm panthernet
+sasl-regexp uid=([^,]+),.*cn=GSSAPI,.* uid=$1,ou=People,dc=panthernet
+sasl-host zeratul.panthernet
+\end{Verbatim}
+
+A \texttt{sasl-realm} azt az ún. kerberos realm-ot határozza meg, amiben a kerberos bejegyzések vannak. A
+\texttt{sasl-host} a kiszolgáló helyét mondja meg, \texttt{sasl-regexp} pedig azt, hogy hogyan lehet megtalálni azt a
+bejegyzést, aki csatlakozott a szerverhez.
 
 % Local Variables:
 % fill-column: 120

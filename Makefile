@@ -1,7 +1,7 @@
 .PHONY:  all build edit log viewpdf viewps silent make pdf emacs-x dvi emacs e ex html
 NAME=main
 all:	build
-build:	$(NAME).tex
+build:	$(NAME).tex setdate
 	pslatex ${NAME}.tex
 #	dvips ${NAME}.dvi
 	pdflatex ${NAME}.tex
@@ -19,12 +19,17 @@ viewpdf:
 	@acroread $(NAME).pdf
 viewps:
 	@gv $(NAME).ps
-silent:	$(NAME).tex
+silent:	$(NAME).tex setdate
 	@pdflatex ${NAME}.tex >/dev/null 2>&1
 dvi:
 	@pslatex ${NAME}.tex >/dev/null 2>&1
 make:
 	mcedit Makefile
 pdf: silent viewpdf
+
+setdate:
+	@bash mkdate.sh
+
+
 html:
 	@html/reparse

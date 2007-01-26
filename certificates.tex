@@ -1,4 +1,4 @@
-\section{Tanúsítvány-kiszolgáló (CA) beállítása}
+\chapter{Tanúsítvány-kiszolgáló (CA) beállítása}
 
 Az SSL/TLS titkosítást használó szerverek mindegyike egy-egy tanúsítványt küld a kliensnek. Mire is jó ez? A
 kiszolgálót hitelesíti ez, vagyis azt jelzi, hogy a kliens biztosan azzal kommunikál, akivel szeretne. Azaz csak
@@ -13,7 +13,7 @@ Van más megoldás is: saját tanúsítvány-kiszolgáló (CA) beállítása, é
 aláiratni. Ez pénzbe kerül. Ha ezt el szeretnénk kerülni, akkor is jó a CA használata, ennek certificate-jét
 importálva/felhasználva sok helyen (fentebb már láttunk rá példát), pl böngészőhöz is hozzáadva.
 
-\subsection{openssl.cnf}
+\section{openssl.cnf}
 Ez a fájl írja le a CA működését. Több CA is lehet benne, ebből egyik az alapértelmezett (lásd a CA szakasz).
 
 A CA\_default az a CA, amit most használunk, lehetne más neve is, csak így utal arra, hogy ő az alapértelmezett.
