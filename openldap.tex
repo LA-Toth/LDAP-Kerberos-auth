@@ -3,7 +3,7 @@
 A dokumentumban ismertetett rendszer egyik központi része az OpenLDAP szerver, amely az LDAP protokollt ({\em Lightweight
   Directory Access Protocol}) valósítja meg. Ez egy ``könyvtárszolgáltatás''
 (directory service) elérésére szolgál, amelynek jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
-optimalizált adatbázist használ az adatok tárolására. Az adatbázis lényegében \emph{bármilyen adatot} tartalmhazhat
+optimalizált adatbázist használ az adatok tárolására. Az~adatbázis lényegében \emph{bármilyen adatot} tartalmhazhat
 \emph{bármiről}, az egyetlen megkötés, hogy faszerkezetű hierarchiába kell szervezni.
 
 Az OpenLDAP szerverhez általában TCP/IP kapcsolaton keresztül lehet csatlakozni, azonban a helyi gépen (amelyen az
@@ -19,7 +19,7 @@ egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja, amely név több
 történik a bejegyzések (objektumok) fába szervezése. Minden bejegyzéshez tartozik egy vagy több
 tulajdonság, amit egy {\em kulcs-érték} pár határoz meg. A kulcs lehet például a ``common name'' (cn) - mindennapi
 név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező. Egy-egy
-tulajdonság (lényegében maga a kulcs) többször is szerepelhet egy objektumon belül.
+tulajdonság (lényegében maga a~kulcs) többször is szerepelhet egy objektumon belül.
 
 A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúcsok) osztályai írják le
 (tulajdonságosztályok). A nevük: \texttt{objectclass}, és a jelölés erejéig legalábbis  maguk is (speciális)
@@ -29,10 +29,10 @@ tulajdonságok.
 \section{Telepítés}
 Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatóak, melyet az
 \texttt{emerge openldap} paranccsal telepíthetünk Gentoo linux esetén, azonban például Debian alatt már több csomagból
-áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, s a telepítő egy minimális fastruktúrát létrehoz a \texttt{slapd.conf}
+áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, és a~telepítő egy~minimális fastruktúrát létrehoz a~\texttt{slapd.conf}
 állománnyal együtt, ezeket azonban Gentoo-n nekünk kell megtennünk.
 
-A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt, Debianban ez a \texttt{/etc/ldap}.
+A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt és \texttt{/etc/ldap} Debian rendszer esetén.
 
 \section{A szerver beállítófájlja: a slapd.conf}
 A \texttt{/etc/openldap/slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
@@ -93,7 +93,7 @@ access to dn.children="ou=People,dc=panthernet"
 Látszik, hogy az admin nevű felhasználónak joga van írni bármilyen bejegyzést. De ki is ő? A rendszerben van egy
 kitüntetett felhasználó (\texttt{rootdn}, akinek a jogosultságát nem lehet szabályozni, bármit módosíthat, a
 neve és a jelszava a\texttt{slapd.conf} fájlban adható meg. Éppen ezért csak bizonyos esetekben szabad használni, ha
-máshogyan nem oldható meg a módosítás. Ebből következően szükség van egy kitüntetett felhasználóra is, amely az LDAP
+máshogyan nem oldható meg a módosítás. Ebből következően szükség van egy kitüntetett felhasználóra is, amely az~LDAP
 adminisztrátor lesz, a Debian telepítésnek megfelelően \texttt{cn=admin,dc=domain,dc=hu} formában hozzuk létre.
 
 
@@ -142,7 +142,7 @@ A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimene
 
 
 Az adatbázisról (\texttt{database} beállításról) mégegyzser: az adatbázis lehet többféle, a legegyszerűbb az
-\texttt{ldbm}, a legjobb választás azonban a  \texttt{bdb} (Berkeley DB), melynek fájljai a \texttt{directory}
+\texttt{ldbm}, a legjobb választás azonban a  \texttt{bdb} (Berkeley DB), melynek fájljai a~\texttt{directory}
 beállításnak megfelelelő könyvtárban lesznek. A könyvtárra a \texttt{700} jogot ajánlott megadni, hogy ne tudja a
 könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a  kereséshez használt index.
 
@@ -168,7 +168,7 @@ SASL_REALM panthernet
 A \texttt{BASE} után a faszerkezet valamely csúcsának egyedi nevét kell megadni, amely alatti bejegyzéseken történik a
 keresés (tehát részfát határoz meg). Az \texttt{URI} a szerver elérését adja meg protokollal együtt. A példában
 a titkosított protokoll (ldaps) szerepel, az ``ldaps.panthernet'' nevű gépen érhető el a szerver, a titkosítás miatt meg
-kell adni azt a helyet, ahol a CA tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
+kell adni azt a~helyet, ahol a CA tanúsítványa található, ez a \texttt{TLS\_CACERT} beállítás.
 
 \section{A rendszer felkészítése az ldap használatához}
 A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az ldapban tárolt
@@ -206,7 +206,7 @@ A fájl többi részét nem szükséges módosítani.
 
 
 \paragraph{nsswitch.conf} Az ldap szerverhez történő csatlakozást a fentebb látható módon garantáltuk, de ez
-kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a \filename{/etc/nsswitch.conf} fájl
+kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a~\texttt{/etc/nsswitch.conf} fájl
 módosításával tehető meg.
 
 \begin{Verbatim}[frame=single,label=/etc/nsswitch.conf ldapot használó része]
@@ -218,7 +218,7 @@ group:       files ldap
 Vagyis a jelszavakat, shadow jelszavakat és a csoportokat egyrészt a helyi fájlokból, másrészt ldapból olvassa ki (az
 elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
 
-Ha nem akarjuk, hogy az LDAP-ban tárolt jelszavakat használja a rendzser, akkor a \texttt{passwd} beállításnál nem
+Ha nem akarjuk, hogy az LDAP-ban tárolt jelszavakat használja a rendzser, akkor a~\texttt{passwd} beállításnál nem
 szükséges a \texttt{ldap} megadása
 
 \section{Az adatok feltöltése}
@@ -249,7 +249,7 @@ Az alapvető bejegyzések a gyökértől kezdődően lefelé a csoportokat defin
 Manager kitüntetett felhasználók (lehet, hogy a Manager felesleges is, ámde így biztosan működik).
 
 Tekintsük először a gyökeret, s annak tulajdonságait.
-A \texttt{dc} az egyedi név, az \texttt{o} a szervezet (organization) rövidítése.
+A \texttt{dc} az egyedi név, az~\texttt{o} a~szervezet (organization) rövidítése.
 
 \begin{Verbatim}[frame=single]
 dn: dc=panthernet
@@ -264,7 +264,7 @@ o: PantherNetwork
 felhasználó, ezért is más az objectClass. Kettő is van neki, a második (\texttt{top}) csak annyit jelent, hogy az
 objektumnak lehetnek gyerekei (bizonyos esetekben szükséges, bizonyos esetekben meg nem, ez erősen függ a többi megadott
 objectClass tulajdonságtól). Ezért a \texttt{top} egy felesleges objectClass, de nem helytelen. Lehet, hogy enélkül is
-menne a rendszer...
+menne a~rendszer...
 
 
 \begin{Verbatim}[frame=single]
@@ -291,7 +291,7 @@ userPassword: {SSHA}blabla
 \end{Verbatim}
 
 
-\noindent A rendszeren létező összes (valódi) felhasználó egyetlen bejegyzés alá kerül, ez pedig a következő lesz, ahol
+\noindent A rendszeren létező összes (valódi) felhasználó egyetlen bejegyzés alá kerül, ez pedig a~következő lesz, ahol
 szervezeti egységet jelent az \textt{organizationalUnit}:
 
 \begin{Verbatim}[frame=single]
@@ -441,7 +441,8 @@ mailRoutingAddress: panther parad
 \subsection{Az LDAP bejegyzések módosítása}
 
 Sokszor menet közben kell felvenni újabb adatokat, vagy meglévőket módosítani, esetleg törölni néhányat. Ezt mind a
-következő paranccsal tehetjük meg: \texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+következő paranccsal tehetjük meg:\\
+\texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
 
 Nézzük sorra, hogy mit hogyan lehet:
 
@@ -459,7 +460,7 @@ userPassword: {KERBEROS}panther@PANTHERNET
 dn: uid=panther,ou=People,dc=panthernet
 changeType: modify
 replace: userPassword
-userPassword: \{KERBEROS\}panther2@PANTHERNET\}}
+userPassword: {KERBEROS}panther2@PANTHERNET
 \end{Verbatim}
 
 \noindent --- Lehet törölni is egy attribútumot, például:
@@ -508,7 +509,7 @@ hiányosságai. Az egyik az, hogy a szerver és a kliens között titkosítatlan
 is hozzáférhet az adatokhoz, ha valahogyan meg tudja szerezni a kliens-szerver kapcsolat csomagjait. A szerver a TLS
 (és SSL) titkosítást támogatja (Transport Layer Security és Secure Socket Layer kifejezések rövidítései).
 
-A TLS beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A beállítások a következők:
+A TLS beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A~beállítások a~következők:
 
 \begin{Verbatim}[frame=single]
 TLSCACertificateFile /etc/openldap/ssl/cacert.pem
@@ -519,7 +520,7 @@ TLSCertificateKeyFile /etc/openldap/ssl/ldaps.panthernet.key
 
 Az első sor jelzi a tanúsítvány-kiszolgáló (CA) tanúsítványát (certificate). A második az openldapét, a harmadik pedig
 az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
-tudja. Az utolsó sor csak a közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
+tudja. Az utolsó sor csak a~közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
 
 
 \section{Replikáció}

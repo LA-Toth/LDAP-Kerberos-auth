@@ -3,7 +3,7 @@
 Manapság elengedhetetlen a hálózati forgalom titkosítása, bármilyen környezetről legyen is szó. Ennek elmulasztása
 jelentős kockázattal járhat, mert illetéktelen személyek (harmadik félnek is nevezik) hozzájuthatnak olyan adatokhoz,
 amikre nem jogosultak. Bár a legbiztonságosabb titkosítás az egyszer használatos kulcs (One Time Padding, OTP), sajnos
-nem valósítható meg gazdaságosan, ezért általában a nyilvános kulcsú titkosítást (és hitelesítést) szokták
+nem valósítható meg gazdaságosan, ezért általában a nyilvános kulcsú titkosítást (és~hitelesítést) szokták
 használni. A kapcsolat során fontos annak ismerete is, hogy kivel történik a kommunikáció (nem egy harmadik személy,
 hanem tényleg az, akinek gondoljuk). A tanúsítványok használata ezekre a problémákra nyújt jó megoldást.
 
@@ -18,7 +18,7 @@ majd szimmetrikus kódolással folytatódik a kommunikáció. Ennek a módszerne
 Aki nyilvános kulcsú hitelesítést vagy titkosítást szeretne használni, annak egy kulcspárra lesz szüksége, amely egy
 magán (privát) kulcsból és egy publikus (nyilvános) kulcsból áll, az utóbbit bárki ismerheti, az előbbit azonban csak a
 tulajdonos. A hitelesítés valójában aláírást jelent, egy elektronikus aláírással védett adat sértetlenségét hivatott
-bizonyítani. Az aláírás a privát kulcs használatával történik, ellenőrzése pedig a publikus kulccsal. A titkosítás
+bizonyítani. Az aláírás a privát kulcs használatával történik, ellenőrzése pedig a publikus kulccsal. A~titkosítás
 viszont fordítva használja fel a kulcsokat, a publikus féllel titkosított szöveget (adatot) csak a kulcspár privát
 részének ismeretében lehet elolvasni. Ezért fontos a magán kulcs védelme, hiszen ellenkező esetben más is hozzáférne az
 adatokhoz (információkhoz, el tudná olvasni a levelet).
@@ -39,11 +39,12 @@ ki írta alá (ki igazolja a tanúsítványunk hitelességét). Emellett szerepe
 tartozó ország, állam, szervezet, szervezeti egység, egy e-mail cím, esetleg más információk is.
 
 Most már meg tudjuk állapítani, hogy a tanúsítványt ki írta alá, és ezáltal azt is, hogy az aláíró tanúsítvány kitől
-származik, illetve azt is, hogy ki írta alá, és így tovább. A tanúsítványok ún. tanúsítványláncot alkotnak. Az egyik
+származik, illetve azt is, hogy ki írta alá, és így tovább. A~tanúsítványok ennek megfelelően 
+ún. tanúsítványláncot alkotnak. Az egyik
 végén van a mi tanúsítványunk, a másik végén pedig az a kitüntetett tanúsítvány, amelyben megbízunk. Előfordulhat, hogy
 több ilyen is van, több tanúsítványban is megbízunk, s ezáltal az általuk aláírtakban, és az azok által aláírtban, és
 így tovább. Ez az utolsó tanúsítvány egy tanúsítvány-kiszolgálóé (Certificate Authority, pontosabb fordításban hitelesítő
-hatóság), gyökértanúsítvány (root certificate) az elnevezése.
+hatóság), a tanúsítvány elnevezése pedig gyökértanúsítvány (root certificate).
 
 Amikor a tanúsítványokat használjuk, akkor az adott kiszolgáló - vagy épp egy adott személy - publikus kulcsával
 dolgozunk.
@@ -52,7 +53,7 @@ A Interneten számos olyan szerver van, amelyik egyáltalán nem használ aláí
 önaláírtat használ. Ezzel a legnagyobb probléma, hogy általában rövid ideig, például egy évig érvényesek, és nem lehet
 ellenőrizni eredetüket. Ha pedig nem lehet ellenőrizni, könnyen megtehető, hogy egy harmadik személy beékelődik a
 titkosított kapcsolat két végpontja közé, a szervernek, ami a tanúsítványt és a privát kulcsot birtokolja ez nem tűnik
-fel, azonban a kliens számára feltűnő, ha ellenőrzi a tanúsítványt. Sajnos az emberek erre általában lustaságból vagy
+fel, azonban a kliens számára feltűnő, ha ellenőrzi a tanúsítványt. Sajnos az~emberek erre általában lustaságból vagy
 tudatlanságból nem képesek, ezért könnyen vissza lehet élni vele. Hogyan dolgozik a beékelődött személy? Létrehoz az
 eredeti tanúsítványhoz hasonló saját tanúsítványt, és eléri, hogy ne az eredeti szerverhez csatlakozzanak, hanem őhozzá,
 majd pedig az eredeti kiszolgálóhoz csatlakozik, teljesen elrejti, hogy tevékenykedik. Tipikusan így lehet jelszavakhoz
@@ -60,7 +61,7 @@ majd pedig az eredeti kiszolgálóhoz csatlakozik, teljesen elrejti, hogy tevék
 
 Saját tanúsítvány-kiszolgálót (hatóságot) is felhasználhatunk, tanúsítványok aláírására lehetőségünk van azonban már
 más, általánosan elfogadott hatóságok esetén is, természetesen ebben az esetben ők írják alá, különben nekünk kell. Az
-egyik legismertebb CA a VeriSign, azonban náluk is pénzbe kerül az aláírás megszerzése. Van azonban egy hasonló,
+egyik legismertebb CA a~VeriSign, azonban náluk is pénzbe kerül az aláírás megszerzése. Van azonban egy hasonló,
 ingyenes lehetőség is, a \textt{https://www.cacert.org/index.php} oldalon.
 
 \section{Tanúsítványok készítése}
@@ -69,9 +70,10 @@ csomag telepítésére van szükségünk. Hacsak nem üzemeltetünk saját tanú
 igényel a rendszerünk. Ellenkező esetben a következő részben ismeretett beállításokra szükségünk van.
 
 \subsection{openssl.cnf}
-Az OpenSSL beállítáfájlja a \texttt{/etc/ssl/openssl.cnf} vagy esetleg a \texttt{/etc/openssl/openssl.cnf}. Mi most nem
+Az OpenSSL beállítáfájlja az \texttt{openssl.cnf}, mely általában a \texttt{/etc/ssl} (Gentoon) vagy a
+\texttt{/etc/openssl} könyvtárban található. Mi most nem
 ezekben a könyvtárakban tároljuk, bár itt kellene, hanem a \texttt{/root/panthernet.ca} könyvtárban. Ugyanaz a fájl több
-különböző CA-ra is vonatkozhat. A \texttt{[ca]} szakaszban csak azt adjuk meg, hogy melyik az alapértelmezett CA. Ezután
+különböző CA-ra is vonatkozhat. A \texttt{[ca]} szakaszban csak azt adjuk meg, hogy melyik az~alapértelmezett CA. Ezután
 minden egyes CA-t külön elnevezhetünk, és külön szakaszban definiálhatjuk a beállításokat. A példában csak egyetlen
 beállítás szerepel, a többi hasonlóan működik. Csak a \texttt{dir} beállítást szükséges megváltoztatni, ha többet
 használunk, viszont mindegyik szabadon konfigurálható.
@@ -87,7 +89,8 @@ certs           = $dir/certs            # Where the issued certs are kept
 crl_dir         = $dir/crl              # Where the issued crl are kept
 database        = $dir/ca.db.index      # database index file.
 #unique_subject = no                    # Set to 'no' to allow creation of
-                                        # several ctificates with same subject.
+                                        # several ctificates with
+                                        # same subject.
 new_certs_dir   = $dir/newcerts         # default place for new certs.
 
 certificate     = $dir/ca/cacert.pem    # The CA certificate
@@ -200,7 +203,7 @@ chmod 400 $1.key
 sem kell írnia, ezért az utolsó sorban ennek megfelelően módosítottuk a jogokat.
 
 A szkript által generált kérelmet (csr fájl) elküldjük a tanúsítvány-kiszolgálónak, amely aláírja, például saját
-rendszeren a következő szkripttel. A létrehozott, aláírt tanúsítvány a .crt kiterjesztésű
+rendszeren a következő szkripttel. A létrehozott, aláírt tanúsítvány a~.crt kiterjesztésű
 fájlba kerül.
 
 \begin{Verbatim}[frame=single,label=casign]
@@ -250,7 +253,7 @@ kulcspárra (és tanúsítványra) ugyanaz vonatkozik, mint a CA-ra.
 Ha saját hitelesítő hatóságunk (CA) van, akkor erre további szabályok vonatkoznak, amiket kötelező (lenne) betartani. A
 privát kulccsal vissza lehet élni, ezért azt mindenképpen védeni kell. Minimális védelemnek tekinthető a kulcs jelszavas
 védelme és a géptől független tárolása. Ha alá kell írni egy tanúsítványt, akkor az aláírás idejére be kell csatolni a
-kulcsot tartalmazó fájlrendszert, ami ma nagy valószínűséggel pendrive vagy CD. Az aláírás végeztével el kell távolítani
+kulcsot tartalmazó fájlrendszert, ami ma nagy valószínűséggel pendrive vagy CD. Az~aláírás végeztével el kell távolítani
 az eszközt. Az még jobb, ha már maga a pendrive fájlrendszere is jelszóval védett, habár ez utóbbi esetleg már inkább
 csak extra védelmet nyújt. Ami lényeges, hogy az eltávolított eszközt biztonságos helyen, például páncélszekrényben kell
 őrizni, amelyhez nem férhet hozzá akárki, és mindig lehet tudni, ki nyúlt bele...
