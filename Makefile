@@ -1,16 +1,18 @@
 .PHONY:  all build edit log viewpdf viewps silent make pdf emacs-x dvi emacs e ex html
 NAME=main
+FILE ?= ${NAME}.tex
+
 all:	build
 build:	$(NAME).tex setdate
 	pslatex ${NAME}.tex
 #	dvips ${NAME}.dvi
 	pdflatex ${NAME}.tex
 edit:
-	mcedit  ${NAME}.tex
+	mcedit  ${FILE}
 emacs-x:
-	emacs ${NAME}.tex &
+	emacs ${FILE} &
 emacs:
-	@emacs -nw ${NAME}.tex
+	@emacs -nw ${FILE}
 e: emacs
 ex: emacs-x
 log:
