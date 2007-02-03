@@ -4,12 +4,45 @@
 \input{preambulum}
 \title{LDAP és Kerberos alapú rendszer megvalósítása}
 
-\author{Tóth László Attila (panther@elte.hu)}
+\author{Tóth László Attila\\{\small(panther@elte.hu)}}
 %\date{2007. január 24.}
 \input{date}
 
 \begin{document}
-  \maketitle
+  \makeatletter
+  \begin{titlepage}%
+  \let\footnotesize\small
+  \let\footnoterule\relax
+  \let \footnote \thanks
+  \null\vfil
+  \vskip 60\p@
+  \begin{center}%
+    {\LARGE \@title \par}%
+    \vskip 3em%
+    {\large
+     \lineskip .75em%
+      \begin{tabular}[t]{c}%
+        \@author
+      \end{tabular}\par}%
+      \vskip 1.5em%
+    {\large \@date \par}%       % Set date in \large size.
+  \end{center}\par
+  \@thanks
+  \vfil\null
+  \end{titlepage}%
+  \setcounter{footnote}{0}%
+  \makeatother
+  \pagestyle{empty}
+  \makeatletter
+  \null\vfill
+  \vskip 60\p@{
+  \makeatother\small
+  \noindent $\copyright$ 2005-2007, Tóth László Attila (panther@elte.hu)%
+  \vskip 3em%
+  \noindent A dokumentum a Free Software Foundation által kiadott GNU Free Documentation 1.1-es vagy újabb verizójában foglalt
+  feltételek keretein belül másolható.%
+  }  \vfil\null
+  \newpage
 
   \pagestyle{plain}
 

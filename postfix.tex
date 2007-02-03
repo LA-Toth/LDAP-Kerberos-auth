@@ -1,4 +1,34 @@
-\chapter{Postfix}
+\chapter{Levéltovábbítás és levélfogadás}\label{chap:Postfix}
+
+A legtöbb esetben egy-egy szerveren megtalálható egy kisebb-nagyobb tudású levelező szerver, pontosabban levéltovábbító
+szerver (MTA, Mail Transfer Agent), amely a címzettől függően küldi tovább egy másik kiszolgálónak a leveleket. Néha
+nincsen erre szükség, ugyanis a kliens programnál beállítható, hogy egy adott MTA kapja meg az elküldött leveleket (és
+ezen a másik gépen menjen keresztül a teljes levelezés). Egy ilyen helyzet lehet az, amikor a felhasználók által
+használt gép csupán bejelentkezésre és parancssori munkára szolgál (login server).
+
+Azonban a felhasználóknak meg is kell kapniuk a leveleket, ezért egy vagy több kiszolgálóra komolyabb levéltovábbító
+szervert tesznek, a legismertebbek a Postfix, az Exim és a Sendmail. Mi most csak az előbbivel foglalkozunk, elsősorban az
+LDAP és Kerberos felhasználásával -- és \aref{chap:spams-viruses}. fejezetben a spam- és vírusszűréssel -- foglalkozunk.
+
+\section{Postfix}
+A nagyobb programok meglehetősen bonyolultakká, összetetté fejlődtek az idők folyamán, a Postfix mégis egyszerű
+tervezésű és könnyebben konfigurálható maradt. Nagyon sok minden beállítható, egyszerűsége nem is ebben, hanem
+modularitásában rejlik, számos kisebb programból áll.
+
+A Postfix a leveleket több várakozási sorban kezeli, egészen pontosan négyben, és nem csak egyetlen nagy várakozási sort
+használ.
+
+%Ezek a következők:
+
+%\begin{itemize}
+%  \item Levélgyűjtő sor (Maildrop Queue)\\
+%    A helyileg fogadott levelek ebbe a levélgyűjtő 
+%\end{itemize}
+
+
+
+
+
 
 \section{/etc/postfix/main.cf}
 A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén myilen
