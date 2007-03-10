@@ -1,11 +1,16 @@
 #!/bin/bash
-cat postfix-ldap-kerberos.tex |
-    sed 'sA\\newcommand{\\ut}\[1\]{\\vspace{5mm}\\fbox{\\parbox{130mm}{\\texttt{\\noindent{#1}}}}\\vspace{5mm}}A\\newcommand{\\ut}[1]{\\texttt{\\noindent{#1}}}A' > html/postfix-ldap-kerberos.tex || exit 1
+
 
 
 cd html || exit 2
-latex2html -noinfo -split 0 -nonavigation -lcase_tags  -html_version 4.0,unicode -toc_depth 5 --reuse 2 -subdir -mkdir -image_type png postfix-ldap-kerberos  2>/dev/null >&2
-cd postfix-ldap-kerberos
+cp -a ../*.tex .
+
+cat preambulum.tex |
+    sed 'sA\\newcommand{\\ut}\[1\]{\\vspace{5mm}\\fbox{\\parbox{130mm}{\\texttt{\\noindent{#1}}}}\\vspace{5mm}}A\\newcommand{\\ut}[1]{\\texttt{\\noindent{#1}}}A' > html/preambulum.tex || exit 1
+
+latex2html -noinfo -split 0 -nonavigation -lcase_tags  -html_version 4.0,unicode -toc_depth 5 --reuse 2 -subdir -mkdir -image_type png main #2>/dev/null >&2
+
+cd main
 
 for i in *.html; do
     test -e "$i" || break
@@ -13,6 +18,6 @@ for i in *.html; do
     cat $i.x | 
 	sed -r 's#CONTENT="text/html; charset=(iso-10646|iso-8859-[12])"#CONTENT="text/html; charset=UTF-8"#i
 s#SRC="file:/usr/lib/latex2html/#SRC="#
-s/('"''"'|``)/"/g' > $i
+s/('"''"'|``)/"/g' | sed -r 's/\[frame=single[^]]*\]//' > $i
     rm $i.x
 done    

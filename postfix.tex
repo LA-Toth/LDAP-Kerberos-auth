@@ -18,31 +18,41 @@ modularitásában rejlik, számos kisebb programból áll.
 A Postfix a leveleket több várakozási sorban kezeli, egészen pontosan négyben, és nem csak egyetlen nagy várakozási sort
 használ.
 
-%Ezek a következők:
+Ezek a következők:
 
-%\begin{itemize}
-%  \item Levélgyűjtő sor (Maildrop Queue)\\
-%    A helyileg fogadott levelek ebbe a levélgyűjtő 
-%\end{itemize}
-
-
-
+\begin{itemize}
+  \item Levélgyűjtő sor (Maildrop queue)\\
+    A helyileg fogadott levelek kerülnek ebbe a sorba, melyből formázás és esetleges javítás után a beérkező sorba
+    jutnak.
+  \item  Beérkező sor (Incoming queue)\\
+    A helyileg fogadott leveleken felül a más kiszolgálókról a postfix \texttt{smtpd} folyamatán keresztül érkezeett
+    levelek kerülnek ide, amíg nincs üresedés az aktív sorban.
+  \item Aktív sor (Active queue)\\
+    Egy rövid sor, melybe csak akkor érkezik levél, ha van szabad hely. A Postfix ebből próbálja kézbesíteni a
+    leveleket.
+  \item Halasztott sor (Deferred queue)\\
+    Azokat a leveleket tartalmazza, melyeket nem sikerült kézbesíteni, így a rendszer nem próbálja újból és újból
+    továbbküldeni. Ha egy tartomány nem elérhető, akkor az összes oda szóló levél egy valamekkora várakozási ideig a
+    halasztott sorba kerül. Ha a várakozási idő letelik, akkor az aktív sorba kerül. Ha még mindig nem sikerült
+    kézbesíteni, akkor egy új, hosszabb várakozási idővel visszakerül a halasztott sorba.
+\end{itemize}
 
 
 
 \section{/etc/postfix/main.cf}
-A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén myilen
+A postfix beállításait tartalmazza, például milyen címeket fogadjon el, aliasok hol vannak, levélküldés esetén milyen
 gépnevet adjon meg...
 
-\ut{myhostname = zeratul.panthernet\\
-  mydomain = panthernet\\
-  myorigin = \$myhostname\\
-  mydestination = \$myhostname, localhost.\$mydomain, localhost, \$mydomain\\
-  relayhost = smtp.axelero.hu\\
-  alias\_maps = hash:/etc/mail/aliases,\\
-  \beh[2] ldap:/etc/postfix/ldapaliases-mailaliases.cf, \\
-  \beh[2] ldap:/etc/postfix/ldapaliases-people.cf}
-
+\begin{Verbatim}[frame=single]
+myhostname = zeratul.panthernet
+mydomain = panthernet
+myorigin = $myhostname
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+relayhost = smtp.axelero.hu
+alias_maps = hash:/etc/mail/aliases,
+  ldap:/etc/postfix/ldapaliases-mailaliases.cf,
+  ldap:/etc/postfix/ldapaliases-people.cf
+\end{Verbatim}
 
 Alapesetben a \texttt{mydomain} a \texttt{myhostname} végével egyezik meg (nem kötelez megadni). Az SMTP protokollban
 ez utóbbi szerepel, vagyis amikor a levelet elküdli a postfix, akkor ilyen néven csatlakozik a másik szerverhez
@@ -68,38 +78,184 @@ Az \texttt{alias\_maps} mondja meg, hogy egy adott email címhez tartozó levele
 Debian rendszereken ennek a fájlnak a helye: \filename{/etc/aliases}.
 
 Formátumra részlet:\\
-\ut{webmaster:  root\\
-  www:                webmaster\\
-  \\
-  levlista: panther@elte.hu root}
+\begin{Verbatim}[frame=single,label=aliases részlet]
+www:                webmaster
 
-Jelen esetben a www címre küldött levelek a webmasternek továbbítódnak, ami még mindig csak virtulális cím, vagyis a
-neki címzett levelek a root felhasználónak továbbítódnak. Így a www címre küldött leveleket is a root kapja meg.
+levlista: root user@domain1.com  user2@example.com
+\end{Verbatim}
 
-Kisebb, statikus levelezési listák is megadhatóak így, ahol több címzett van.
+Jelen esetben a \texttt{www} címre küldött levelek a webmasternek továbbítódnak, ami még mindig csak virtulális cím,
+vagyis a neki címzett levelek a \texttt{root} felhasználónak továbbítódnak. Így a \texttt{www} címre küldött leveleket
+is a \texttt{root} kapja meg.
+
+Kisebb, statikus levelezési listák is megadhatóak így, ahol több címzett van (pl. a \texttt{levlista});
 
 A Postfix ezt még nem kezeli, ezért adatbázist kell létrehozni belőle (erre utal a \texttt{hash} a fájlnév előtt), ez
 a \texttt{/usr/bin/newaliases} paranccsal tehető meg. A létrehozott fájl: /etc/mail/aliases.db.
 
 
 
-\section{/etc/postfix/ldapaliases.cf}
+\section{LDAP-ban tárolt alias-ok}
 Az ldap-ban történő keresést az alábbi szerkezetű fájl teszi lehetővé.
 
-\ut{server\_host = ldap://ldaps.panthernet:389\\
-  search\_base = ou=MailAliases,dc=panthernet\\
-  version = 3\\
-  scope = one\\
-  bind = no\\
-  query\_filter = (maillocaladdress=\%s)\\
-  result\_attribute = mailroutingaddress\\
-  dereference = 3\\
-  timeout = 10}
 
+\begin{Verbatim}[frame=single,label=/etc/postfix/ldapaliases.cf]
+server_host = ldap://ldaps.panthernet:389
+search_base = ou=MailAliases,dc=panthernet
+version = 3
+scope = one
+bind = no
+query_filter = (maillocaladdress=%s)
+result_attribute = mailroutingaddress
+dereference = 3
+timeout = 10
+\end{Verbatim}
 Az első sor azt az URI-t adja meg, ami a szervert azonosítja. A postfix a \texttt{search\_base} beállításban megadott
 csúcs alatti részfában keres. Mivel a \texttt{scope} értéke ``one'', az előbb megadott csúcs gyerekeit nézi végig. A
 3-as verzió  a mostani. A \texttt{bind = no} a névtelen kapcsolódást teszi lehetővé (mint a /etc/ldap.conf-ban a
 hasonló beállítás).
+
+\section{Virtuális tartományok}
+Gyakran előfordul, hogy egy-egy szerveren egy vagy több tényleges tartomány (domain)van, amelyek levelei a tényleges
+felhasználóknak jönnek, azonban ezek mellett még további virtuális tartományok vannak. A virtuális tartományokra az a
+jellemző, hogy az oda érkező levelek továbbításra kerülnek. Postfix esetén külön fel kell sorolni a virtuális
+tartományokat, továbbá azt is meg kell adni, hogy mi legyen a levelekkel. A legegyszerűbb esetben -- ezt nézzük meg most
+-- a levelek továbbítását kell megadni. A \texttt{main.cf}-ben megadjuk, hogy részben LDAP-ból, részben pedig
+hagyományos módon egy fájlból (hash prefix) történjen a cím-címzett megfeleltetés.
+
+\begin{Verbatim}[frame=single,label=main.cf részlet]
+virtual_alias_domains = mytest.hu, mytest2.hu
+virtual_alias_maps = hash:/etc/postfix/virtual,
+     ldap:/etc/postfix/virtual-ldap-domains.conf
+\end{Verbatim}
+
+Az LDAP változatnál annyi a változataás, hogy nem az \texttt{ou=MailAliases} alatt szerepelnek ezek, hanem önálló
+szervezeti egységben (\texttt{ou=VirtualDomains}) , és szintén szervezeti egységnek tekintjük az egyes tartományokat,
+vagyis részfában fog keresni a postfix. Ezért a \texttt{scope = sub} lesz a helyes beállítás a konfigurációs fájlban.
+
+Ha egyszerű fájlt használunk, akkor mindig ki kell adni a \texttt{postmap /etc/postfix/virtual} parancsot, hogy
+frissüljön az az adatbázisfájl is, amit a postfix olvas (\texttt{/etc/postfix/virtual.db}).
+
+Amennyiben azt szeretnénk, hogy minden egyéb levél, aminek az email címe nincs felsorolva egy adott címre vagy
+felhasználónak menjen, akkor a \texttt{@domain1.hu} stílusú (felhasználó nélkül megadott) email címre kell megmondani,
+mi történjen vele.
+
+\begin{Verbatim}[frame=single,label=virtual]
+# lokális címre küldés (tényleges felhasználó)
+user1@mytest.hu panther
+user2@mytest.hu root
+
+# másik tartományba küldés
+user3@mytest.hu azon@example.com
+
+# minden egyéb, az adott tartományba érkező levél küldése
+# angolul: ``catch-all''
+@mytest.hu  postmaster@example.net
+\end{Verbatim}
+
+\begin{Verbatim}[frame=single,label=virtual-ldap-domains.conf]
+server_host = ldap://ldaps.panthernet:389
+search_base = ou=VirtualDomains,dc=panthernet
+version = 3
+scope = sub
+bind = no
+query_filter = (maillocaladdress=%s)
+result_attribute = mailroutingaddress
+dereference = 3
+timeout = 10
+\end{Verbatim}
+
+
+Ilyen körülmények között felmerül a kérdés, hogy pontosan mi lesz a levelekkel? A problémák, kérdések:
+
+\begin{enumzjr}
+  \item \emph{Egy címhez több különböző cél adott.} Ha pl. a user1@mytest.hu ldap-beli célja (mailRoutingAddress
+  bejegyzése) más, pl. user4@example.net, akkor mi történik?
+  \item \emph{Egy címhez több különböző helyen definiált cél adott.} Pl. a uer1@mytest.hu célja az ldapban ugyanaz, mint
+  a fájlban, akkor mi történik?
+  \item \emph{A fájlban adott catch-all cím mellett vannak további bejegyzések az ldap-ban is.}
+  \item \emph{Ldap-ban definiált catch-all cím.}
+\end{enumzjr}
+
+A válaszok:
+
+\begin{enumzjr}
+  \item A \texttt{virtual\_alias\_maps}-ban megadott sorrend számít, ezért amelyik előrébb van, az dönt.
+  \item Az előzővel azonos.
+  \item A catch-all cím (alapértelmezett cím) mindig az utolsó, ezért a postfix előbb végignézi az összes lehetséges
+    bejegyzést, hátha talál olyat, ami erre vonatkozik, ha nincs, csak utána foglalkozik az alapértelmezett címmel.
+  \item A catchall cím mindig az utolsó, akárhol is definiált.
+\end{enumzjr}
+
+
+\subsubsection{Az LDAP bejegyzések}
+
+Az email címek csoportosíthatóak a következők szerint: \texttt{ou=VirtualDomains} szervezeti egység alatt van minden
+ilyen bejegyzés. Ez alatt szervezeti egységként az összes tartomány. Ezek alatt pedig az email címek, amelyek nyilván
+egyediek, ezért az \texttt{account} objektumosztály megfelelő erre, akárcsak a \texttt{MailAliases} szervezeti
+egységben, és be kell állítani az \texttt{uid} attribútumot, amely lehet a cím \texttt{@} előtti része.
+
+Most álljon itt néhány példa, ilyen sorrendben is kell létrehozni őket:
+
+\begin{Verbatim}[frame=single,label=VirtualDomains]
+dn: ou=VirtualDomains,dc=panthernet
+ou: VirtualDomains
+objectClass: top
+objectClass: organizationalUnit
+description: Postfix Virtual Domains Root node
+\end{Verbatim}
+
+
+\begin{Verbatim}[frame=single,label=mytest.hu]
+dn: ou=mytest.hu,ou=VirtualDomains,dc=panthernet
+ou: mytest.hu
+objectClass: top
+objectClass: organizationalUnit
+\end{Verbatim}
+
+
+\begin{Verbatim}[frame=single]
+dn: ou=mytest2.hu,ou=VirtualDomains,dc=panthernet
+ou: mytest2.hu
+objectClass: top
+objectClass: organizationalUnit
+
+\end{Verbatim}
+
+\begin{Verbatim}[frame=single]
+dn: uid=usr,ou=Mytest2.hu,ou=VirtualDomains,dc=panthernet
+objectClass: account
+objectClass: top
+objectClass: inetLocalMailRecipient
+mailLocalAddress: usr@mytest2.hu
+uid: usr
+mailRoutingAddress: panther
+\end{Verbatim}
+
+
+\begin{Verbatim}[frame=single,label=default]
+dn: uid=default,ou=Mytest2.hu,ou=VirtualDomains,dc=panthernet
+objectClass: account
+objectClass: top
+objectClass: inetLocalMailRecipient
+mailLocalAddress: @mytest2.hu
+uid: default
+mailRoutingAddress: panther@example.net
+\end{Verbatim}
+
+Azonban nem kötelező az ilyen elrendezés, használható akár maga az email cím is az \texttt{uid} attribútum
+értékeként. Itt az is változtatás, hogy közvetlenül a \texttt{VirtualDomains} alatt van, amely azonban átláthatatlanná
+tehet egy bonyolultabb adatbázist (fastruktúrát).
+
+\begin{Verbatim}[frame=single,label=user1@mytest.hu]
+dn: uid=user1@mytest.hu,ou=VirtualDomains,dc=panthernet
+objectClass: account
+objectClass: top
+objectClass: inetLocalMailRecipient
+mailLocalAddress: user1@mytest.hu
+mailRoutingAddress: user@example.net
+uid: user1@mytest.hu
+\end{Verbatim}
 
 % Local Variables:
 % fill-column: 120
