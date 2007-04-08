@@ -4,19 +4,20 @@ alapján eldönti, hogy az adott levél spam-e, vagy épp vírusos-e.
 
 Egy minimális konfiguráció (amit be kell állítani) a következő:
 
-\ut{\# /etc/amavisd.conf\\
-  \$mydomain = 'panthernet';\\
-  \$myhostname = 'zeratul.panthernet';\\
-  \$daemon\_user  = 'amavis';       \# (no default;  customary: vscan or amavis)\\
-  \$daemon\_group = 'clamav';       \# (no default;  customary: vscan or amavis)\\
-  \$virus\_admin = "panther@\$mydomain";\\\
-  \$mail\_notify\_admin = "antivirus@\$mydomain";\\
-  \$mail\_notify\_spamadmin = "antivirus@\$mydomain";\\
-  \# \#\#\# http://www.clamav.net/\\
-  %%	 ['ClamAV-clamd',\\
-  %% 	  \textbackslash\&ask\_daemon, ["CONTSCAN \{\}\textbackslash n", "/var/run/clamav/clamd.sock"],\\
-  %%	  qr/\textbackslash bOK\$/, qr/\textbackslash bFOUND\$/,\ldots\
-}
+\begin{Verbatim}[frame=single,label=amavisd.conf részlet]
+$mydomain = 'panthernet';
+$myhostname = 'zeratul.panthernet';
+$daemon\_user  = 'amavis';       # (no default;  customary: vscan or amavis)
+$daemon\_group = 'clamav';       # (no default;  customary: vscan or amavis)
+$virus\_admin = "panther@$mydomain";
+$mail\_notify\_admin = "antivirus@$mydomain";
+$mail\_notify\_spamadmin = "antivirus@$mydomain";
+#### http://www.clamav.net/ 
+#$
+# ['ClamAV-clamd',
+#  \&ask_daemon, ["CONTSCAN {}\n", "/var/run/clamav/clamd.sock"],
+#  qr/\bOK\$/, qr/\textbackslash bFOUND$/...
+\end{Verbatim}
 
 Az amavisnak a clamav-vel azonos csoportban kell lennie, hogy olvashassa a clamav socket fájlját, a
 \texttt{/var/run/clamav/clamd.sock}-t.
@@ -30,10 +31,12 @@ Illetve be kell állítani, hogy a könyvtár (\texttt{/var/amavis}) megfelelő 
 \section{A ClamAV beállítása}
 A ClamAV alapértelmezett konfigja csak példa, ezért egy hashmark (\#) karaktert kell az ``Example'' sor elé tenni:
 
-\ut{\# Example
-  LogFile /var/log/clamav/clamd.log
-  LocalSocket /var/run/clamav/clamd.sock
-}
+\begin{Verbatim}[frame=single,label=clamd.conf részlet]
+# Example
+LogFile /var/log/clamav/clamd.log
+LocalSocket /var/run/clamav/clamd.sock
+\end{Verbatim}
+
 
 A \textt{LocalSocket} ugyanaz legyen, mint ami az \texttt{/etc/amavisd.conf}-ban szerepel. Ha ez megvan, már
 működőképes a rendszer.
@@ -42,31 +45,31 @@ működőképes a rendszer.
 
 A \texttt{/etc/postfix/master.cf} fájlban kell módosítani, az első három sor talán nem kell...
 
-\ut{\# submission=587\\
-  submission   inet    n       -       n       -       -       smtpd\\
-  -o smtpd\_enforce\_tls=yes -o smtpd\_sasl\_auth\_enable=yes -o smtpd\_etrn\_restrictions=reject\\
-  \#\#\#\\
-  \# AMAVIS etc
-  127.0.0.1:10025 inet n  -       n       -       -       smtpd\\
-  -o content\_filter=\\
-  -o local\_recipient\_maps=\\
-  -o smtpd\_client\_restrictions=\\
-  -o smtpd\_helo\_restrictions=\\
-  -o smtpd\_sender\_restrictions=\\
-  -o smtpd\_restrictions=permit\_mynetworks,reject\_unauth\_destination\\
-  -o mynetworks=127.0.0.0/8\\
-  -o strict\_rfc821\_envelopes=yes\\
-  -o smtpd\_error\_sleep\_time=0\\
-  -o smtpd\_soft\_error\_limit=1001\\
-  -o smtpd\_hard\_error\_limit=1000\\
-  smtp-amavis     unix    -       -       y       -       2       smtp\\
-  -o smtp\_data\_done\_timeout=1200\\
-  -o disable\_dns\_lookups=yes
-}
 
+\begin{Verbatim}[frame=single,label=master.cf részlet]
+###
+# AMAVIS etc
+127.0.0.1:10025 inet    n       -       n       -       -       smtpd
+  -o content_filter=
+  -o local_recipient_maps=
+  -o smtpd_client_restrictions=
+  -o smtpd_helo_restrictions=
+  -o smtpd_sender_restrictions=
+  -o smtpd_restrictions=permit_mynetworks,reject_unauth_destination
+  -o mynetworks=127.0.0.0/8
+  -o strict_rfc821_envelopes=yes
+  -o smtpd_error_sleep_time=0
+  -o smtpd_soft_error_limit=1001
+  -o smtpd_hard_error_limit=1000
+smtp-amavis     unix    -       -       n       -       2       smtp
+    -o smtp_data_done_timeout=1200
+    -o disable_dns_lookups=yes
+\end{Verbatim}
 \noindent A \texttt{/etc/postfix/master.cf} fájlban is kell egy új sor:
 
-\ut{content\_filter = smtp-amavis:[127.0.0.1]:10024}
+\begin{Verbatim}[frame=single]
+content_filter = smtp-amavis:[127.0.0.1]:10024
+\end{Verbatim}
 
 Mi is történik ekkor? A Postfix kap egy levelet a 25-ös porton. Ezt továbbadja a localhost 10024-es portjára az
 amavisd-new-nak. Az amavisd-new meghívja a spam- és vírusszűrőket, majd visszaküldi a levelet a postfixnak a

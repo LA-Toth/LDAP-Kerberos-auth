@@ -1,0 +1,47 @@
+\chapter{Levelezőkliensek beállítása}
+\section{Mutt}
+A mutt rendszerszintű beállítófájljában, a \texttt{/etc/mutt/Muttrc}-ben a következőket állítjuk be:
+
+\ut{set certificate\_file="/etc/openldap/ssl/cacert.pem"\\
+  set move=no
+  set hostname=panthernet\\
+  set ssl\_starttls=yes\\
+  set folder=\$MAIL
+}
+
+Az első a CA tanúsítványát jelöli, a 3. azért kell, hogy ne a gépnév.domain alakú email cím legyen, ha elküld a
+rendszer egy levelet, a 4. az SSL/TLS titkosítást állítja be, végül az utolsó az IMAP könyvtár helye (INBOX), ami egy
+környezeti változó:
+
+\ut{export MAIL=\{\$USER@zeratul.panthernet\}INBOX}
+
+\section{Thunderbird}
+A Thunderbird címjegyzékében megadható LDAP kiszolgáló is, ilyenkor kereshetőek a szerveren található bejegyzések.
+
+\subsection{A kiszolgáló megadása}
+A \emph{kiszolgáló tulajdonságai} ablakban megadható a kapcsolat tulajdonságai, a következők szerint:
+
+\paragraph{Általános fül} Itt a kapcsolat minimális tulajdonságai állíthatóak be.
+\begin{Verbatim}
+Név: Panthernet
+Gépnév: ldaps.panthernet
+Alap DN: ou=People,dc=Panthernet
+Port száma: 389
+\end{Verbatim}
+
+Ennyi elég, a gépnév (Host) a kiszolgáló neve vagy IP címe, az alap DN (Base DN) az a csúcs, amely alatt keres a
+Thunderbird. A port száma pedig ahol a kiszolgáló megtalálható.
+
+Előfordulhat, hogy névtelen kapcsolódás tiltott, ekkor meg kell adni a \emph{Bejelentkezési DN} beállítást is,
+pl. \texttt{uid=panther,ou=People,dc=panthernet}. Az első csatlakozáskor kéri a jelszót is. Végül megadható az is, hogy
+SSL titkosítást használjon-e. Ebben az setben a jelszavak, adatok nem mindenki által olvashatóan, hanem kódoltan mennek a hálózaton, ezért érdemes használni.
+
+\paragraph{Haladó fül} Néhány további beállítás adható meg, egyrészt a \emph{Hatókör (Scope)}, amely lehet \emph{Egy
+  szint} (One level?), illetve \emph{Részfa} (Subtree), másrészt a keresés szűkítésére szolgáló szűrő. Alapesetben ez
+  \emph{objectClass=*)}, azonban szűkíthető, hogy csak olyan bejegyzéseket listázzon, amelyek ténylegesen egy
+  kapcsolatot (vagy bejelentkezési azonosítót) jelölnek: \emph{(objectClass=inetOrgPerson)}.
+
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:

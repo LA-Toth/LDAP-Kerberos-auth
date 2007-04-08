@@ -33,24 +33,6 @@ Azzal együtt már működik:
 \ut{\$ \emph{\textbf{ldapsearch -Y GSSAPI  uid=panther}}}
 
 
-\chapter{Levelezőkliensek beállítása}
-\section{Mutt}
-A mutt rendszerszintű beállítófájljában, a \texttt{/etc/mutt/Muttrc}-ben a következőket állítjuk be:
-
-\ut{set certificate\_file="/etc/openldap/ssl/cacert.pem"\\
-  set move=no
-  set hostname=panthernet\\
-  set ssl\_starttls=yes\\
-  set folder=\$MAIL
-}
-
-Az első a CA tanúsítványát jelöli, a 3. azért kell, hogy ne a gépnév.domain alakú email cím legyen, ha elküld a
-rendszer egy levelet, a 4. az SSL/TLS titkosítást állítja be, végül az utolsó az IMAP könyvtár helye (INBOX), ami egy
-környezeti változó:
-
-\ut{export MAIL=\{\$USER@zeratul.panthernet\}INBOX}
-
-
 % Local Variables:
 % fill-column: 120
 % TeX-master: t

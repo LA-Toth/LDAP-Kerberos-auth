@@ -1,4 +1,4 @@
-\chapter{Kerberos}
+\chapter{Kerberos}\label{cha:Kerberos}
 
 Egy részletes leírás itt olvasható: http://cfhay.inf.elte.hu/kerberos/leiras.html
 
@@ -31,23 +31,31 @@ A legfontosabb beállásokat a \texttt{/etc/krb5.conf} tartalmazza.
 \subsection{/etc/krb5.conf illetve DNS bejegyzések}
 A fájlt mindenki olvashatja. Nálam ezek a beállítások vannak:
 
-\ut{[libdefaults]\\
-  \hspace*{2cm}ticket\_lifetime = 86400\\
-  \hspace*{2cm}default\_realm = PANTHERNET\\
-  \hspace*{2cm}forwardable = true\newline\newline
-	  [realms]\\
-	  \hspace*{2cm}PANTHERNET = \{\\
-	  \hspace*{2cm}kdc = 10.0.0.2:88\\
-	  \hspace*{2cm}admin\_server = 10.0.0.2:749\\
-	  \hspace*{2cm}\}\newline\newline
-		  [domain\_realm]\\
-		  \hspace*{2cm}.panthernet = PANTHERNET\\
-		  \hspace*{2cm}panthernet = PANTHERNET\\
-		  \hspace*{2cm}localhost = PANTHERNET\newline\newline
-			  [logging]\\
-			  \hspace*{2cm}kdc = FILE:/var/log/krb5kdc.log\\
-			  \hspace*{2cm}admin\_server = FILE:/var/log/kadmin.log\\
-			  \hspace*{2cm}default = FILE:/var/log/krb5lib.log}
+
+\begin{Verbatim}[frame=single,label=krb5.conf]
+[libdefaults]
+        ticket_lifetime = 86400
+        default_realm = PANTHERNET
+        forwardable = true
+
+[realms]
+        PANTHERNET = {
+        kdc = 10.0.1.101:88
+        admin_server = 10.0.1.101:749
+        }
+
+[domain_realm]
+        .panthernet = PANTHERNET
+        panthernet = PANTHERNET
+        localhost = PANTHERNET
+
+[logging]
+        kdc = FILE:/var/log/krb5kdc.log
+        admin_server = FILE:/var/log/kadmin.log
+        default = FILE:/var/log/krb5lib.log
+
+
+\end{Verbatim}
 
 A logolás (logging) nem túl érdekes. A libdefaults tartalmazza az alapértelmezett beállításokat. Az első sor a jegy
 élettartamát adja meg, mely most egy nap. A következő az alapértelmezett realm, amely azért szükséges, hogy ne kelljen
@@ -65,17 +73,20 @@ adott realm nevének megfelelő dns bejegyzéseket keres.
 
 Tegyük fel, hogy két kerberos szerverünk van, kdc1 és kdc2. Ekkor a DNS bejegyzések a következők lesznek:
 
-\ut{\_kerberos.\_udp   IN SRV 1 0 88 kdc1\\
-  \_kerberos.\_tcp   IN SRV 1 0 88 kdc1\\
-  \_kerberos.\_udp   IN SRV 10 0 88 kdc2\\
-  \_kerberos.\_tcp   IN SRV 10 0 88 kdc2\\
-  \_kerberos-adm.\_tcp IN SRV 1 0 749 kdc1\\
-  \_kpasswd.\_udp   IN SRV 1 0 464 kdc1\\
-  \_kerberos IN TXT "EXAMPLE.COM"
-}
+\begin{Verbatim}[frame=single,label=kerberos DNS bejegyzések]
+_kerberos._udp     IN SRV 1 0 88 kdc1
+_kerberos._tcp     IN SRV 1 0 88 kdc1
+_kerberos._udp     IN SRV 10 0 88 kdc2
+_kerberos._tcp     IN SRV 10 0 88 kdc2
+_kerberos-adm._tcp IN SRV 1 0 749 kdc1
+_kpasswd._udp      IN SRV 1 0 464 kdc1
+_kerberos          IN TXT "EXAMPLE.COM"
+\end{Verbatim}
 
-Itt a gépnevek végén nincsen pont, ezért a tartományon belül szerepelnek, pl. a gépem esetén így egészülne ki:\\
-\ut{\_kerberos.udp.panthernet. IN SRV 1 0 88 kdc1.panthernet.}
+Itt a gépnevek végén nincsen pont, ezért a tartományon belül szerepelnek, pl. a gépem esetén így egészülne ki:
+\begin{Verbatim}[frame=single]
+_kerberos.udp.panthernet. IN SRV 1 0 88 kdc1.panthernet.
+\end{Verbatim}
 
 A kdc1 az elsődleges kerberos kiszolgáló, ezért az SRV bejegyzés után álló számot kisebbre kell állítani (1 versus
 10). A 88 a kdc standard (krb5-ös) portja (tcp + udp), 749 pedig a kadmin szerveré. A jelszóváltoztatást is és a realm
@@ -95,22 +106,25 @@ kerberos kiszolgálót.
 A(z elsődleges) KDC-n a \texttt{kadmin.local} programmal lehet adminisztrálni a realmot. Ha ezt még nem hoztuk létre,
 akkor ilyen hibaüzenetet kapunk:
 
-\ut{\# kadmin.local\\
-  Authenticating as principal root/admin@PANTHERNET with password.\\
-  kadmin.local: No such file or directory while initializing kadmin.local interface}
+\begin{Verbatim}[frame=single]
+# kadmin.local\\
+Authenticating as principal root/admin@PANTHERNET with password.
+kadmin.local: No such file or directory while initializing kadmin.local interface
+\end{Verbatim}
 
-\newpage
 Hozzuk létre (PANTHERNET helyére értelemszerűen mást írva):
 
-\ut{\# kdb5\_util create -s -r  PANTHERNET\\
-  Loading random data\\
-  Initializing database '/etc/krb5kdc/principal' for realm 'PANTHERNET',\\
-  master key name 'K/M@PANTHERNET'\\
-  You will be prompted for the database Master Password.\\
-  It is important that you NOT FORGET this password.\\
-  Enter KDC database master key:\\
-  Re-enter KDC database master key to verify:
-}
+\begin{Verbatim}[frame=single,label=realm létrehozása]
+# kdb5_util create -s -r  PANTHERNET
+Loading random data
+Initializing database '/etc/krb5kdc/principal' for realm 'PANTHERNET',
+master key name 'K/M@PANTHERNET'
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+Enter KDC database master key:
+Re-enter KDC database master key to verify:
+\end{Verbatim}
+
 
 A realm adatbázisa (fájlja) a következő: \texttt{/etc/krb5kdc/principal}. A fájlt jelszó védi, amit érdemes felírni és
 jól elzárt helyen tárolni. Enélkül könnyen visszaélhet valaki a jogosultságokkal. Ha nem ismert a jelszó, akkor nem
@@ -130,51 +144,61 @@ szabályok szigorítása, és így általánosan kezelhetjük a felhasználókat
 A kliensben van segítség is, mely a \texttt{help} parancs hatására jön elő, illetve egy nem teljesen megadott parancs
 is kiírja paraméterezését. A parancsoknak van hosszabb és rövidebb formájuk is.
 
-\ut{\# kadmin.local\\
-  Authenticating as principal root/admin@PANTHERNET with password.
-  kadmin.local:  \emph{\textbf{addpol}}\\
-  add\_policy: parser lost count!\\
-  usage; add\_policy [options] policy\\
-  \hspace*{1.5cm}options are:\\
-  \hspace*{3cm}[-maxlife time] [-minlife time] [-minlength length]\\
-  \hspace*{3cm}[-minclasses number] [-history number]\\
-  kadmin.local: \emph{\textbf{addpol users}}\\
-  kadmin.local: \emph{\textbf{addpol admin}}\\
-  kadmin.local: \emph{\textbf{addpol hosts}}
-}
+%% \begin{figure}
+%% \caption{A házirendek (policy-k) létrehozása}
+\begin{Verbatim}[frame=single,label=házirendek]
+# kadmin.local
+Authenticating as principal root/admin@PANTHERNET with password.
+kadmin.local:  addpol
+add_policy: parser lost count!
+usage; add_policy [options] policy
+        options are:
+                [-maxlife time] [-minlife time] [-minlength length]
+                [-minclasses number] [-history number]
+kadmin.local: addpol users
+kadmin.local: addpol admin
+kadmin.local: addpol hosts
+\end{Verbatim}
+%% \end{figure}
 
 A fenti 3 házirenddel szétválaszthatjuk a jogosultságok szerint az ún. \emph{pricipal}-okat (a létrehozott
 bejegyzéseket).
 
 Az enyémet (normál ill. admin változatban) így lehet hozzáadni (a parancs 2 alakját használva a 3-ból):
 
-\ut{kadmin.local: \emph{\textbf{ank -policy users panther}}\\
-  Enter password for principal "panther@PANTHERNET":\\
-  Re-enter password for principal "panther@PANTHERNET":\\
-  Principal "panther@PANTHERNET" created.\\
-  kadmin.local: \emph{\textbf{addprinc -policy admin panther/admin}}\\
-  Enter password for principal "panther/admin@PANTHERNET":\\
-  Re-enter password for principal "panther/admin@PANTHERNET":\\
-  Principal "panther/admin@PANTHERNET" created.
-}
+\begin{Verbatim}[frame=single,label=Felhasználók hozzáadása]
+kadmin.local: ank -policy users panther
+Enter password for principal "panther@PANTHERNET":
+Re-enter password for principal "panther@PANTHERNET":
+Principal "panther@PANTHERNET" created.
+kadmin.local: addprinc -policy admin panther/admin
+Enter password for principal "panther/admin@PANTHERNET":
+Re-enter password for principal "panther/admin@PANTHERNET":
+Principal "panther/admin@PANTHERNET" created.
+\end{Verbatim}
+
 
 
 Ha ki szeretnénk listázni az összeset, akkor a következőképp járjunk el (és ilyesmilyen kimenetet kapunk):
 
-\ut{kadmin.local: \emph{\textbf{listprincs}}\\
-  K/M@PANTHERNET\\
-  \ldots\\
-  panther/admin@PANTHERNET
-}
+\begin{Verbatim}[frame=single]
+kadmin.local: listprincs
+K/M@PANTHERNET
+...
+panther/admin@PANTHERNET
+\end{Verbatim}
+
 
 Normál felhasználóként indítva más promptot kapunk és másképp kell indítani:
 
-\ut{panther ~ \$ /usr/sbin/kadmin
-  Couldn't open log file /var/log/kadmin.log: Permission denied\\
-  Couldn't open log file /var/log/kadmin.log: Permission denied\\
-  Authenticating as principal panther/admin@PANTHERNET with password.\\
-  Password for panther/admin@PANTHERNET:\\
-  kadmin:}
+\begin{Verbatim}[frame=single,label=Normál felhasználóként indítva]
+panther ~ > /usr/sbin/kadmin
+Couldn't open log file /var/log/kadmin.log: Permission denied
+Couldn't open log file /var/log/kadmin.log: Permission denied
+Authenticating as principal panther/admin@PANTHERNET with password.
+Password for panther/admin@PANTHERNET:
+kadmin:
+\end{Verbatim}
 
 Az első két sor elfogadható, hiszen csak a rootnak szabad írnia a log fájlokat. Utána kiírja, hogy a felhasználói fiók
 admin változatával próbál csatlakozni, ehhez bekéri a jelszót.
@@ -183,14 +207,18 @@ Ekkor sajnos még nincs jogunk listázni sem a principal-okat.
 
 A kdc-t tartalmazó géphez tartozó principal hozzáadása:
 
-\ut{kadmin.local:  \emph{\textbf{addprinc -randkey -policy hosts host/zeratul.panthernet}}\\
-  Principal "host/zeratul.panthernet@PANTHERNET" created.\\
-  kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5.keytab host/zeratul.panthernet}}\\
-  Entry for principal host/zeratul.panthernet with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to
-  keytab WRFILE:/etc/krb5.keytab.\\    
-  Entry for principal host/zeratul.panthernet with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab
-  WRFILE:/etc/krb5.keytab.
-}
+\begin{Verbatim}[frame=single]
+kadmin.local:  addprinc -randkey -policy hosts host/zeratul.panthernet
+Principal "host/zeratul.panthernet@PANTHERNET" created.
+kadmin.local:  ktadd -k /etc/krb5.keytab host/zeratul.panthernet
+Entry for principal host/zeratul.panthernet with kvno 3, encryption
+type Triple DES cbc mode with HMAC/sha1 added to
+keytab WRFILE:/etc/krb5.keytab.
+Entry for principal host/zeratul.panthernet with kvno 3, encryption
+type DES cbc mode with CRC-32 added to keytab
+WRFILE:/etc/krb5.keytab.
+\end{Verbatim}
+
 
 Most nem kell jelszó, ezért egy véletlen kulcsot generál a program a \texttt{-randkey} opció hatására. Mivel a
 kiszolgáló nem adhat meg jelszót, ezért jelszava például a \texttt{/etc/krb5.keytab} fájlban tárolódik, vagy másban, a
@@ -200,21 +228,25 @@ lényeg, hogy csak a kiszolgáló felhasználója tudja olvasni. Itt most ebbe a
 \subsection{A KDC beállítása}
 A  KDC beállítófájlja, amin nem nagyon kell változtatni (/etc/kdc.conf):
 
-\ut{[kdcdefaults]\\
-  kdc\_ports = 88,750\newline\newline
-  [realms]\\
-  PANTHERNET = \{\\
-  database\_name = /etc/krb5kdc/principal\\
-  admin\_keytab = /etc/krb5kdc/kadm5.keytab\\
-  acl\_file = /etc/krb5kdc/kadm5.acl\\
-  dict\_file = /etc/krb5kdc/kadm5.dict\\
-  key\_stash\_file = /etc/krb5kdc/.k5.PANTHERNET\\
-  kadmind\_port = 749\\
-  max\_life = 10h 0m 0s\\
-  max\_renewable\_life = 7d 0h 0m 0s\\
-  master\_key\_type = des3-hmac-sha1\\
-  supported\_enctypes = des3-hmac-sha1:normal des-cbc-crc:normal\\
-  \}}
+
+\begin{Verbatim}[frame=single,label=kdc.conf]
+[kdcdefaults]
+        kdc_ports = 88,750
+
+[realms]
+        PANTHERNET = {
+        database_name = /etc/krb5kdc/principal
+        admin_keytab = /etc/krb5kdc/kadm5.keytab
+        acl_file = /etc/krb5kdc/kadm5.acl
+        dict_file = /etc/krb5kdc/kadm5.dict
+        key_stash_file = /etc/krb5kdc/.k5.PANTHERNET
+        kadmind_port = 749
+        max_life = 10h 0m 0s
+        max_renewable_life = 7d 0h 0m 0s
+        master_key_type = des3-hmac-sha1
+        supported_enctypes = des3-hmac-sha1:normal des-cbc-crc:normal
+        }
+\end{Verbatim}
 
 Egy KDC több realmot is kiszolgálhat. Amennyiben automatikusan szeretnénk elindítani, a mester jelszó megadása
 nélkül, akkor a \texttt{key\_stash\_file} opcióban megadott fájlra szükségünk van, ellenkező esetben töröljük le. Az
@@ -222,31 +254,43 @@ automatikus indítás a biztonság rovására megy, mert a fájl megszerzéséve
 
 A \texttt{/etc/krb5kdc/kadm5.acl} fájl tartalmazza a jogosultságokat, jelen esetben:
 
-\ut{*/admin@PANTHERNET      *}
+\begin{Verbatim}[frame=single,label=kadm5.acl]
+*/admin@PANTHERNET      *
+\end{Verbatim}
 
 vagyis az összes adminnak mindenhez van joga.
 
 A \texttt{/etc/krb5kdc/kadm5.keytab} az admin keytab (kulcsokat tartalmazó fájl), ide két principal-t kell betenni:
 
-\ut{kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5kdc/kadm5.keytab kadmin/admin kadmin/changepw}}\\
-  Entry for principal kadmin/admin with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
-  Entry for principal kadmin/admin with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
-  Entry for principal kadmin/changepw with kvno 4, encryption type Triple DES cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
-  Entry for principal kadmin/changepw with kvno 4, encryption type DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.\\
-}
+\begin{Verbatim}[frame=single,label=principal keytab-hoz adása]
+kadmin.local:  ktadd -k /etc/krb5kdc/kadm5.keytab kadmin/admin kadmin/changepw
+Entry for principal kadmin/admin with kvno 3, encryption type Triple DES
+cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.
+Entry for principal kadmin/admin with kvno 3, encryption type
+DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.
+Entry for principal kadmin/changepw with kvno 4, encryption type Triple DES
+cbc mode with HMAC/sha1 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.
+Entry for principal kadmin/changepw with kvno 4, encryption type
+DES cbc mode with CRC-32 added to keytab WRFILE:/etc/krb5kdc/kadm5.keytab.
+
+\end{Verbatim}
+
 
 \section{Szolgáltatások hozzáadása}
 Tegyük fel, hogy a cyrus szervert szeretnénk beüzemelni. Neki külön keytab fájl kell, ezt a következőképpen tehetjük
 meg (kadmin vagy kadmin.local is jó):
 
-\ut{admin.local:  \emph{\textbf{addprinc -randkey -policy hosts imap/zeratul.panthernet}}\\
-  Principal "imap/zeratul.panthernet@PANTHERNET" created.\\
-  kadmin.local:  \emph{\textbf{ktadd -k /etc/krb5.keytab.cyrus imap/zeratul.panthernet}}\\
-  Entry for principal imap/zeratul.panthernet with kvno 3, encryption type Triple DES cbc mode with HMAC/sha1 added to
-  keytab WRFILE:/etc/krb5.keytab.cyrus.\\    
-  Entry for principal imap/zeratul.panthernet with kvno 3, encryption type DES cbc mode with CRC-32 added to keytab
-  WRFILE:/etc/krb5.keytab.cyrus.\\    
-}
+\begin{Verbatim}[frame=single,label=szolgáltatás principal hozzáadása]
+admin.local:  addprinc -randkey -policy hosts imap/zeratul.panthernet
+Principal "imap/zeratul.panthernet@PANTHERNET" created.
+kadmin.local:  ktadd -k /etc/krb5.keytab.cyrus imap/zeratul.panthernet
+Entry for principal imap/zeratul.panthernet with kvno 3, encryption
+type Triple DES cbc mode with HMAC/sha1 added to keytab
+WRFILE:/etc/krb5.keytab.cyrus.
+Entry for principal imap/zeratul.panthernet with kvno 3, encryption
+type DES cbc mode with CRC-32 added to keytab
+WRFILE:/etc/krb5.keytab.cyrus.
+\end{Verbatim}
 
 Bármely további szolgáltatást hasonlóképpen, \emph{szolgáltatásnév/szervernév}  formában megadhatunk. Itt a
 /etc/krb5.keytab.cyrus fájl a cyrus tulajdonában lévő, csak általa olvasható (és esetleg írható) fájl.
@@ -258,33 +302,39 @@ arra, hogy menet közben ezt eldobjuk, vagy éppen másik realmból szeretnénk 
 
 Például bejelentkeztem az \texttt{INF.ELTE.HU} tartományba, és a host ticketeknek megfelelően a 3 gépre:
 
-\ut{\$ klist\\
-  Ticket cache: FILE:/tmp/krb5cc\_1000\\
-  Default principal: panther@INF.ELTE.HU\\
-  \\
-  Valid starting\ \ \ \ \ Expires\ \ \ \ \ \ \ \ \ \ \ \ Service principal\\
-  07/30/06 23:59:19\  07/31/06 09:59:30\ \ krbtgt/INF.ELTE.HU@INF.ELTE.HU\\
-  \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19\\
-  07/30/06 23:59:54\ \ 07/31/06 09:59:30\ \ host/valerie.inf.elte.hu@INF\ldots\\
-  \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19\\
-  07/30/06 23:59:54\ \ 07/31/06 09:59:30\ \ host/panda.inf.elte.hu@INF\ldots\\
-  \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19\\
-  07/30/06 23:59:54\ \ 07/31/06 09:59:30\ \ host/pandora.inf.elte.hu@INF\ldots\\
-  \ \ \ \ \ \ \ \ renew until 07/31/06 23:59:19
-}
+\begin{Verbatim}[frame=single,label=klist]
+klist
+Ticket cache: FILE:/tmp/krb5cc_1000
+Default principal: panther@INF.ELTE.HU
+
+Valid starting     Expires            Service principal
+07/30/06 23:59:19  07/31/06 09:59:30  krbtgt/INF.ELTE.HU@INF.ELTE.HU
+        renew until 07/31/06 23:59:19
+07/30/06 23:59:54  07/31/06 09:59:30  host/valerie.inf.elte.hu@INF...
+        renew until 07/31/06 23:59:19
+07/30/06 23:59:54  07/31/06 09:59:30  host/panda.inf.elte.hu@INF...
+        renew until 07/31/06 23:59:19
+07/30/06 23:59:54  07/31/06 09:59:30  host/pandora.inf.elte.hu@INF...
+        renew until 07/31/06 23:59:19
+
+\end{Verbatim}
 
 Itt a jegy a \texttt{/tmp/krb5cc\_1000} fájlban van, amelyben az alapértelmezett (principal) a
 \texttt{panther@INF.ELTE.HU}.
 
 Ennek eldobása:
 
-\ut{kdestroy}
+\begin{Verbatim}[frame=single]
+kdestroy
+\end{Verbatim}
 
 Ha nincsen ``default principal'', akkor a \texttt{/etc/krb5.conf} alapértelmezett realm-ját veszi alapul, ellenkező
 esetben a principalt újítja meg:
 
-\ut{\$ kinit\\
-  Password for panther@INF.ELTE.HU: }
+\begin{Verbatim}[frame=single,label=kinit]
+kinit
+Password for panther@INF.ELTE.HU:
+\end{Verbatim}
 
 A \texttt{kinit} egyik legfontosabb opciója a \texttt{-f} és a \texttt{-F}, az előbbivel lehet \emph{továbbítható
   (forwardable)} jegyet igényelni, utóbbi pedig letiltja ezt. Ha továbbítható a jegy, akkor jelszókérés nélkül be lehet
@@ -301,24 +351,26 @@ beállításokat a \texttt{/etc/pam.d} könyvtár tartalmazza.
 
 A Gentoo Linuxon az általánosan használt rész egy külön fájlban,\\ a \texttt{/etc/pam.d/system-auth}-ban van:
 
-\ut{\begin{tabular}{llll}%{\hspace{0.4cm}l\hspace{0.4cm}l\hspace{0.4cm}l\hspace{0.2cm}l}
-    auth      & required    & pam\_env.so&\\
-    auth      & sufficient  & pam\_unix.so &likeauth nullok\\
-    auth      & sufficient  & pam\_krb5.so &use\_first\_pass forwardable\\
-    auth      & required    & pam\_deny.so&\\\\
-    account   & required    & pam\_unix.so&\\\\
-    password  & required    & pam\_cracklib.so &difok=2 minlen=8 dcredit=2\textbackslash\\
-    &&&\hspace*{1cm}ocredit=2 retry=3\\
-    password  & sufficient &  pam\_unix.so& nullok md5 shadow use\_authtok\\
-    password  & sufficient &  pam\_krb5.so &use\_first\_pass\\
-    password  & required   &  pam\_deny.so&\\\\
-    session   & required  &   pam\_limits.so&\\
-    session    &sufficient &  pam\_unix.so&\\
-    session    &sufficient  & pam\_krb5.so&\\
-    session    &required    & pam\_deny.so&\\
-    session    &required    &pam\_unix.so&
-  \end{tabular}
-}
+\begin{Verbatim}[frame=single,label=system-auth]
+auth      required     pam_env.so
+auth      sufficient   pam_unix.so      likeauth nullok
+auth      sufficient   pam_krb5.so      use_first_pass forwardable
+auth      required     pam_deny.so
+
+account   required     pam_unix.so
+
+password  required     pam_cracklib.so  difok=2 minlen=8 dcredit=2
+                                  ocredit=2 retry=3
+password   sufficient  pam_unix.so   nullok md5 shadow use_authtok\\
+password   sufficient  pam_krb5.so   use_first_pass\\
+password   required    pam_deny.so  
+
+session    required    pam_limits.so
+session    sufficient  pam_unix.so
+session    sufficient  pam_krb5.so
+session    required    pam_deny.so
+session    required    pam_unix.so
+\end{Verbatim}
 
 Ez egy tipikusan hibás fájl, ami viszont jól szerepel benne: a \texttt{pam\_krb5}-öt ugyanúgy kell kezelni, mint a
 \texttt{pam\_unix}-ot. Az előbbi az első jelszót használja, ha nem sikerülne a \texttt{pam\_unix} jelszóellenőrzése,
@@ -326,13 +378,13 @@ valamint továbbítható jegyet kér.
 
 Hogyan lehet használni a fenti fájlt? Például így:
 
-\ut{\begin{tabular}{lll}
-    auth      & required    & pam\_nologin.so\\
-    auth      & include     & system-auth\\
-    account   & include     & system-auth\\
-    session   & include     & system-auth
-  \end{tabular}
-}
+\begin{Verbatim}[frame=single]
+auth      required    pam_nologin.so
+auth      include     system-auth
+account   include     system-auth
+session   include     system-auth
+\end{Verbatim}
+
 
 % Local Variables:
 % fill-column: 120

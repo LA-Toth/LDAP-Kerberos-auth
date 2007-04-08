@@ -13,7 +13,7 @@ LDAP és Kerberos felhasználásával -- és \aref{chap:spams-viruses}. fejezetb
 \section{Postfix}
 A nagyobb programok meglehetősen bonyolultakká, összetetté fejlődtek az idők folyamán, a Postfix mégis egyszerű
 tervezésű és könnyebben konfigurálható maradt. Nagyon sok minden beállítható, egyszerűsége nem is ebben, hanem
-modularitásában rejlik, számos kisebb programból áll.
+modularitásában rejlik, számos kisebb programból áll (\cite{szerverved}).
 
 A Postfix a leveleket több várakozási sorban kezeli, egészen pontosan négyben, és nem csak egyetlen nagy várakozási sort
 használ.
@@ -197,6 +197,9 @@ egységben, és be kell állítani az \texttt{uid} attribútumot, amely lehet a 
 
 Most álljon itt néhány példa, ilyen sorrendben is kell létrehozni őket:
 
+
+%% \begin{figure}
+%% \caption{A virtuális tartományok és azok bejegyzései}
 \begin{Verbatim}[frame=single,label=VirtualDomains]
 dn: ou=VirtualDomains,dc=panthernet
 ou: VirtualDomains
@@ -214,7 +217,7 @@ objectClass: organizationalUnit
 \end{Verbatim}
 
 
-\begin{Verbatim}[frame=single]
+\begin{Verbatim}[frame=single,label=mytest2.hu]
 dn: ou=mytest2.hu,ou=VirtualDomains,dc=panthernet
 ou: mytest2.hu
 objectClass: top
@@ -222,7 +225,7 @@ objectClass: organizationalUnit
 
 \end{Verbatim}
 
-\begin{Verbatim}[frame=single]
+\begin{Verbatim}[frame=single,label=usr@mytest2.hu]
 dn: uid=usr,ou=Mytest2.hu,ou=VirtualDomains,dc=panthernet
 objectClass: account
 objectClass: top
@@ -231,7 +234,6 @@ mailLocalAddress: usr@mytest2.hu
 uid: usr
 mailRoutingAddress: panther
 \end{Verbatim}
-
 
 \begin{Verbatim}[frame=single,label=default]
 dn: uid=default,ou=Mytest2.hu,ou=VirtualDomains,dc=panthernet
@@ -242,11 +244,14 @@ mailLocalAddress: @mytest2.hu
 uid: default
 mailRoutingAddress: panther@example.net
 \end{Verbatim}
+%% \end{figure}
 
 Azonban nem kötelező az ilyen elrendezés, használható akár maga az email cím is az \texttt{uid} attribútum
 értékeként. Itt az is változtatás, hogy közvetlenül a \texttt{VirtualDomains} alatt van, amely azonban átláthatatlanná
 tehet egy bonyolultabb adatbázist (fastruktúrát).
 
+%% \begin{figure}
+%% \caption{Email cím mint egyedi név}
 \begin{Verbatim}[frame=single,label=user1@mytest.hu]
 dn: uid=user1@mytest.hu,ou=VirtualDomains,dc=panthernet
 objectClass: account
@@ -256,6 +261,7 @@ mailLocalAddress: user1@mytest.hu
 mailRoutingAddress: user@example.net
 uid: user1@mytest.hu
 \end{Verbatim}
+%% \end{figure}
 
 % Local Variables:
 % fill-column: 120

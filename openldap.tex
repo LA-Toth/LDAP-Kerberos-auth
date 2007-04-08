@@ -523,15 +523,17 @@ az openldap titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell
 tudja. Az utolsó sor csak a~közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettőskereszt (\#)).
 
 
-\section{Replikáció}
+%\section{Replikáció}
 
-TODO
+%TODO
 
-\section{Kerberos}
+
+
+\section{Kerberos alapú hitelesítés}
 
 A Kerberos előnye, hogy egyszer kell a felhasználót hitelesíteni, utána hozzáférhet más szolgáltatásokhoz, anélkül, hogy
-megadná újból és újból a jelszavát. Az LDAP szerverhez történő hozzáférés is szabályozható a következőkben (valamint egy
-további opció is szerepel a példában):
+megadná újból és újból a jelszavát. Részletesen lásd \aref{cha:Kerberos}. fejezetben. Az LDAP szerverhez történő
+hozzáférés is szabályozható a következőkben (valamint egy további opció is szerepel a példában):
 
 \begin{Verbatim}[frame=single]
 sasl-realm panthernet
