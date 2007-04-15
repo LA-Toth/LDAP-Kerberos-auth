@@ -1,4 +1,4 @@
-\documentclass[fleqn,11pt,a4paper,oneside]{book}
+\documentclass[fleqn,11pt,a4paper,openright,openbib]{book}
 
 
 \input{preambulum}
@@ -43,16 +43,16 @@
   feltételek keretein belül másolható.%
   }  \vfil\null
   \newpage
-
-  \pagestyle{plain}
+  \pagestyle{fancy}
 
   \frontmatter
   \tableofcontents
 
   \mainmatter
   \input{eloszo}
-  \input{openldap}
+  \input{bevezetes}
   \input{certificates.tex}
+  \input{openldap}
   \input{postfix}
   \input{kerberos}
   \input{cyrus}

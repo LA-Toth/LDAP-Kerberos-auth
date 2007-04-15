@@ -1,0 +1,65 @@
+\chapter{Bevezetés}
+
+Bár ma a számítógépek és az Internet elterjedésével egyre több helyen épülnek ki sokfelhasználós, számos szolgáltatást
+nyújtó rendszerek, bonyolult kezdetben a felhasználók hitelesítésére elegendő volt egy egyszerű szövegfájl, amely
+tartalmazta a felhasználó adatait, valamint a jelszavát is. Mindenkinek joga volt olvasni ezt a fájlt, a jelszavak
+tárolása ezáltal nem volt biztonságos, de az akkori gépigénye miatt nem volt érdemes megpróbálni visszafejeteni. Ezért a
+jelszavakat később már külön állományban tárolták, amit a gépen egyetlen felhasználó, a root tudott mind írni, mind
+olvasni.
+
+A biztonsági problémát sikerült elhárítani, azonban két további probléma váltazatlanul fennállt, az egyik az, hogy
+néhány ezer vagy különösen több tízezer felhasználó esetén kezelhetetlenné vált mind módosítás, mind keresés esetén. A
+másik akkor merült fel, ha egyazon felhasználónak több gépre is van bejelentkezési joga, ennek megfelelően ma sokszor
+egy-egy központi szerveren létrehozzák a felhasználó fiókját (ahol a fájljai, könyvtárai, tehát lényegében minden adata
+tárolódik), így számos egyéb gépen (például laborokban) azonos körülmények között folyhat a munka. A felhasználókat
+tároló fájlt minden gépre át kellene másolni, módosításokat követni, ami nagyon nehézkes, a probléma ugyanaz, mint  mint
+alig több, mint egy évtizeddel korábban gépek azonosításával, amikor sok gép volt már, és az őket azonosító számokat,
+valamint a könnyebb megjegyezhetőség végett bevezetett beszédes neveket összekapcsoló állományokat körülményes volt
+karbantartani. Ezért bevezették a névkiszolgálók rendszerét, s csak egy-egy gépen kell a módosításokat elvégezni.
+
+A hitelesítésnél ugyanez a megoldás, egy központi gépen tárolható a felhasználó összes adata, jelszava. Többféle
+megoldás is szóba kerülhet, például adatbázisban (MySQL, Oracle, stb.), vagy épp egy hierarchikus rendszerben
+(pl. \textsc{ldap}'-ban) történő tárolás. Az \textsc{ldap} protokoll egy könnyen kezelhető, gyors megoldást nyújt, ezt
+valósítja meg az OpenLDAP szerver, valamint a Microsoft Active Directory (\textsc{AD}) vezérlői is. 
+
+Az \textsc{ldap} adatbázisban is tárolható a jelszó, azonban nem túl biztonságos, ráadásul minden egyes szolgáltatás
+igénybevételekor újra be kell írni a jelszót. Mind a biztonság, mind a kényelem szempontjából előnyösebb a Kerberos
+használata, amit az \textsc{mit} mit-krb5 programja, valamint a Heimdal valósít meg a nyílt forráskódú rendszerek
+esetén, és például Microsoft Windows AD tarományvezérlői is tartalmazzák. A jegyzetben a mit-krb5-ről lesz csak szó.
+
+Az \textsc{ldap} és a Kerberos segítségével bejelentkezés után többet nem kell beírni a jelszót, azonnal be lehet
+bejelentkezni bármely másik gépre is, valamint email-eket is el lehet olvasni, egészen pontosan bármely Kerberos-t
+támogató szolgáltatás azonnal, biztonságosan, és újbóli jelszó begépelés nélkül igénybe vehető. Ezek közül a
+levelezőszerverek (jelen esetben Postfix és Cyrus), és levelezőkliensek, valamint a bejelentkezés beállítását tekintjük
+csak meg, mivel a többi szolgáltatás ezeknél jóval ritkábban fordul elő.
+
+Az itt bemutatott rendszer GNU/Linux alapokon nyugszik, a jegyzet elsősorban a Gentoo Linuxon történő beállításokat
+mutatja be, azonban a többi terjesztésen (disztribúción) is hasonlóan használható.
+
+A továbbiakban a következő szolgáltatásokat vizsgáljuk: 
+OpenLDAP,
+MIT-Krb5 (Kerberos),
+Tanúsítvány-kiszolgáló (Certificate Authority),
+PAM,
+Cyrus saslauthd,
+OpenSSH,
+Postfix,
+Amavisd-new,
+ClamAV,
+SpamAssassin,
+valamint SSL/TLS titkosítás az előző programok esetén. A beállításokat lépésről lépésre nézzük át, először mindig
+azt, hogy önállóan, a többi nélkül hogyan lehet beállítani, majd pedig a rendszerbe történő integrálásukat.
+
+Egy nagyobb, sok számítógépből álló rendszerben a legtöbb szolgáltatás önálló gépen, vagy gépeken fut, ezért
+elengedhetetlen, hogy a hálózati kommunikáció titkosítva történjen. Néhány esetben enélkül nem is lehet igénybe venni a
+szolgáltatást (\textsc{ssh}, Kerberos), azonban több is megengedi a titkosítatlan használatot, amely túl nagy
+kockázattal járhat (ilyenek a levelezőszerverek, de maga az \textsc{ldap} kiszolgáló is). A titkosítást \textsc{ssl}
+(Secure Socket Layer) feletti kommunikáció teszi lehetővé, amely biztonsága egyrészt a titkosítás erőssége (mennyire
+könnyű visszafejteni), másrészt a tanúsítványok használata adja, amelyekkel ellenőrizhető, hogy kivel történik a
+kommunikáció.
+
+  
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:
