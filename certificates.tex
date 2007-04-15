@@ -67,10 +67,10 @@ ingyenes lehetőség is, a \textt{https://www.cacert.org/index.php} oldalon.
 \section{Tanúsítványok készítése}
 Most, hogy már tudjuk, hogyan működnek a tanúsítványok, tekintsük meg a gyakorlati felhasználást is. Ehhez az OpenSSL
 csomag telepítésére van szükségünk. Hacsak nem üzemeltetünk saját tanúsítvány-kiszolgálót, további beállítást nem
-igényel a rendszerünk. Ellenkező esetben a következő részben ismeretett beállításokra szükségünk van.
+igényel a rendszerünk. Ellenkező esetben a következő részben ismertetett beállításokra szükségünk van.
 
 \subsection{openssl.cnf}
-Az OpenSSL beállítáfájlja az \texttt{openssl.cnf}, mely általában a \texttt{/etc/ssl} (Gentoon) vagy a
+Az OpenSSL beállításfájlja az \texttt{openssl.cnf}, mely általában a \texttt{/etc/ssl} (Gentoo-n) vagy a
 \texttt{/etc/openssl} könyvtárban található. Mi most nem
 ezekben a könyvtárakban tároljuk, bár itt kellene, hanem a \texttt{/root/panthernet.ca} könyvtárban. Ugyanaz a fájl több
 különböző CA-ra is vonatkozhat. A \texttt{[ca]} szakaszban csak azt adjuk meg, hogy melyik az~alapértelmezett CA. Ezután

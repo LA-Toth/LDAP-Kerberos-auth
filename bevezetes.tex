@@ -3,11 +3,11 @@
 Bár ma a számítógépek és az Internet elterjedésével egyre több helyen épülnek ki sokfelhasználós, számos szolgáltatást
 nyújtó rendszerek, bonyolult kezdetben a felhasználók hitelesítésére elegendő volt egy egyszerű szövegfájl, amely
 tartalmazta a felhasználó adatait, valamint a jelszavát is. Mindenkinek joga volt olvasni ezt a fájlt, a jelszavak
-tárolása ezáltal nem volt biztonságos, de az akkori gépigénye miatt nem volt érdemes megpróbálni visszafejeteni. Ezért a
+tárolása ezáltal nem volt biztonságos, de az akkori gépigénye miatt nem volt érdemes megpróbálni visszafejteni Ezért a
 jelszavakat később már külön állományban tárolták, amit a gépen egyetlen felhasználó, a root tudott mind írni, mind
 olvasni.
 
-A biztonsági problémát sikerült elhárítani, azonban két további probléma váltazatlanul fennállt, az egyik az, hogy
+A biztonsági problémát sikerült elhárítani, azonban két további probléma változatlanul fennállt, az egyik az, hogy
 néhány ezer vagy különösen több tízezer felhasználó esetén kezelhetetlenné vált mind módosítás, mind keresés esetén. A
 másik akkor merült fel, ha egyazon felhasználónak több gépre is van bejelentkezési joga, ennek megfelelően ma sokszor
 egy-egy központi szerveren létrehozzák a felhasználó fiókját (ahol a fájljai, könyvtárai, tehát lényegében minden adata
@@ -25,7 +25,7 @@ valósítja meg az OpenLDAP szerver, valamint a Microsoft Active Directory (\tex
 Az \textsc{ldap} adatbázisban is tárolható a jelszó, azonban nem túl biztonságos, ráadásul minden egyes szolgáltatás
 igénybevételekor újra be kell írni a jelszót. Mind a biztonság, mind a kényelem szempontjából előnyösebb a Kerberos
 használata, amit az \textsc{mit} mit-krb5 programja, valamint a Heimdal valósít meg a nyílt forráskódú rendszerek
-esetén, és például Microsoft Windows AD tarományvezérlői is tartalmazzák. A jegyzetben a mit-krb5-ről lesz csak szó.
+esetén, és például Microsoft Windows AD tartományvezérlői is tartalmazzák. A jegyzetben a mit-krb5-ről lesz csak szó.
 
 Az \textsc{ldap} és a Kerberos segítségével bejelentkezés után többet nem kell beírni a jelszót, azonnal be lehet
 bejelentkezni bármely másik gépre is, valamint email-eket is el lehet olvasni, egészen pontosan bármely Kerberos-t
@@ -38,7 +38,7 @@ mutatja be, azonban a többi terjesztésen (disztribúción) is hasonlóan haszn
 
 A továbbiakban a következő szolgáltatásokat vizsgáljuk: 
 OpenLDAP,
-MIT-Krb5 (Kerberos),
+mit-krb5 (Kerberos),
 Tanúsítvány-kiszolgáló (Certificate Authority),
 PAM,
 Cyrus saslauthd,
@@ -47,7 +47,7 @@ Postfix,
 Amavisd-new,
 ClamAV,
 SpamAssassin,
-valamint SSL/TLS titkosítás az előző programok esetén. A beállításokat lépésről lépésre nézzük át, először mindig
+valamint \textsc{ssl}/\textsc{tls} titkosítás az előző programok esetén. A beállításokat lépésről lépésre nézzük át, először mindig
 azt, hogy önállóan, a többi nélkül hogyan lehet beállítani, majd pedig a rendszerbe történő integrálásukat.
 
 Egy nagyobb, sok számítógépből álló rendszerben a legtöbb szolgáltatás önálló gépen, vagy gépeken fut, ezért
