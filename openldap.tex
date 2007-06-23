@@ -1,22 +1,34 @@
-\chapter{Az \textsc{ldap} és az OpenLDAP kiszolgáló}
+\chapter{Az \textsc{ldap} és az OpenLDAP kiszolgáló}\label{cha:ldap}
 
-A dokumentumban ismertetett rendszer egyik központi része az OpenLDAP szerver, amely az \textsc{ldap} protokollt ({\em Lightweight
-  Directory Access Protocol}) valósítja meg. Ez egy ``könyvtárszolgáltatás''
-(directory service) elérésére szolgál, amelynek jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
-optimalizált adatbázist használ az adatok tárolására. Az~adatbázis lényegében \emph{bármilyen adatot} tartalmazhat
-\emph{bármiről}, az egyetlen megkötés, hogy faszerkezetű hierarchiába kell szervezni.
+Az \textsc{ldap}-ot használó rendszerekkel egyszerűvé válik a hitelesítés, a felhasználók karbantartása, hiszen nem kell
+számos gépen karbantartani a \texttt{/etc/\{passwd,shadow\}} állományokat, vagy épp \textsc{nis} használata esetén
+egyetlen helyen ugyanezt megtenni. Még egyetlen gép esetén is nehézkes egy rendezetlen állomány kezelése. Ezt a
+problémát vagy adatbázis-kiszolgálóval, vagy pedig \textsc{ldap} alapú szerverrel lehet (érdemes) megoldani. Itt az
+utóbbiról lesz szó. Alapesetben az információk adatbázisban tárolódnak, azonban a kezelés módja más, és az \textsc{ldap}
+kötetlenebb struktúrát jelent.
 
-Az OpenLDAP szerverhez általában \textsc{tcp}/\textsc{ip} kapcsolaton keresztül lehet csatlakozni, azonban a helyi gépen (amelyen az
-\textsc{ldap} kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
+Tehát a jelszavak és felhasználók adatai könnyebben kezelhetők. Ez azonban csak a lehetőségek egy kis (azonban
+leggyakrabban használt) részét jelentik. A rendszer további \emph{sémákkal} bővíthető, amelyek azt mondják meg, hogy az
+egyes adatoknak milyen lehetséges tulajdonságai lehetnek, ezért a felhasználók adatai tovább bővíthetők, így bármilyen
+szolgáltatás használhatja ezt az adatbázist. Erre tipikus példa a \emph{Samba} kiszolgáló.
 
-A következőkben az \textsc{ldap} szerver alapvető beállítását, majd pedig a rendszer kibővítését titkosítással,
-Kerberos alapú hitelesítéssel, végül pedig a szerver adatbázisának replikálását olvashatjuk.
-\section{Mi is az \textsc{ldap}?}
+Az \textsc{ldap} adatbázis szinte bármit tartalmazhat, ezért alkalmas vállalati címtár kiszolgálónak is, vagy éppen
+bármilyen egyéb adat tárolására is, akár egy igazi könyvtárban található könyvek adatainak tárolására is (bár nem ez az
+ideális felhasználási mód). Ezek szerint  az adatbázis lényegében \emph{bármilyen adatot} tartalmazhat
+\emph{bármiről}.
+
+Ha pedig kiegészítjük Kerberos (\ref{cha:kerberos}.\ fejezet) használatával, akkor az egyszeri bejelentkezés előnyeit is
+élvezhetjük.
+
+
+\section{Az \textsc{ldap}}
 
 A legelső kérdés, hogy mi az \textsc{ldap}?
-Az \textsc{ldap} egy hierarchikusan (faszerkezetbe) szervezett adatbázis elérésére szolgáló protokoll. A fában tárolt adatokat
-egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja, amely név több részből áll, a  különböző részek alapján
-történik a bejegyzések (objektumok) fába szervezése. Minden bejegyzéshez tartozik egy vagy több
+Az \textsc{ldap}  ({\em Lightweight Directory Access Protocol}) egy hierarchikusan (faszerkezetbe) szervezett adatbázis
+elérésére szolgáló protokoll, mely ``könyvtárszolgáltatás'' (directory service) elérését teszi lehetővé.
+A fában tárolt adatokat egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja,
+amely név több részből áll, a  különböző részek alapján történik a bejegyzések (objektumok) fába szervezése. Minden
+bejegyzéshez tartozik egy vagy több
 tulajdonság, amit egy {\em kulcs-érték} pár határoz meg. A kulcs lehet például a ``common name'' (cn) - mindennapi
 név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező. Egy-egy
 tulajdonság (lényegében maga a~kulcs) többször is szerepelhet egy objektumon belül.
@@ -24,6 +36,18 @@ tulajdonság (lényegében maga a~kulcs) többször is szerepelhet egy objektumo
 A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúcsok) osztályai írják le
 (tulajdonságosztályok). A nevük: \texttt{objectclass}, és a jelölés erejéig legalábbis  maguk is (speciális)
 tulajdonságok.
+
+Az adatbázis olvasásra, keresésre, böngészésre optimalizált, ha csak olvasni kell, akkor nagyon gyorsan megkapható a
+kívánt adat.
+
+\section{Az OpenLDAP kiszolgáló}
+
+A jegyzetben ismertetett rendszer egyik központi része az OpenLDAP szerver. A kiszolgáló az \textsc{ldap} protokollt
+használja, általában \textsc{tcp}/\textsc{ip} kapcsolaton keresztül lehet hozzá csatlakoizni. Azonban a helyi gépen
+(amelyen az \textsc{ldap} kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
+
+A következőkben az \textsc{ldap} szerver alapvető beállítását, majd pedig a rendszer kibővítését titkosítással,
+Kerberos alapú hitelesítéssel, végül pedig a szerver adatbázisának replikálását olvashatjuk.
 
 
 \section{Telepítés}
@@ -292,7 +316,7 @@ userPassword: {SSHA}blabla
 
 
 \noindent A rendszeren létező összes (valódi) felhasználó egyetlen bejegyzés alá kerül, ez pedig a~következő lesz, ahol
-szervezeti egységet jelent az \textt{organizationalUnit}:
+szervezeti egységet jelent az \texttt{organizationalUnit}:
 
 \begin{Verbatim}[frame=single]
 dn: ou=People,dc=panthernet
@@ -336,7 +360,7 @@ Az \texttt{inetorgPerson} többek között a következő opcionális tulajdonsá
 \texttt{homePhone}, \texttt{homePostalAddress}, \texttt{initials}, \texttt{mail},  \texttt{mobile},
 \texttt{roomNumber}, \texttt{uid}.
 
-A \textt{person} (\texttt{core.schema}) esetén az \texttt{sn}, \texttt{cn} attribútumokat kötelező definiálni
+A \texttt{person} (\texttt{core.schema}) esetén az \texttt{sn}, \texttt{cn} attribútumokat kötelező definiálni
 (vezetéknév az \texttt{sn}). Opcionális többek között: \texttt{ userPassword}, \texttt{telephoneNumber}.
 
 Az \texttt{organizationalPerson} valamilyen szervezethez tartozó személyt jelent. Itt többek között
@@ -532,7 +556,7 @@ tudja. Az utolsó sor csak a~közepes és erős titkosító algoritmusokat enged
 \section{Kerberos alapú hitelesítés}
 
 A Kerberos előnye, hogy egyszer kell a felhasználót hitelesíteni, utána hozzáférhet más szolgáltatásokhoz, anélkül, hogy
-megadná újból és újból a jelszavát. Részletesen lásd \aref{cha:Kerberos}. fejezetben. Az \textsc{ldap} szerverhez történő
+megadná újból és újból a jelszavát. Részletesen lásd \aref{cha:kerberos}. fejezetben. Az \textsc{ldap} szerverhez történő
 hozzáférés is szabályozható a következőkben (valamint egy további opció is szerepel a példában):
 
 \begin{Verbatim}[frame=single]

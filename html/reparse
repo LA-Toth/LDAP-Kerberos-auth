@@ -4,9 +4,9 @@
 
 cd html || exit 2
 cp -a ../*.tex .
-
-cat preambulum.tex |
-    sed 'sA\\newcommand{\\ut}\[1\]{\\vspace{5mm}\\fbox{\\parbox{130mm}{\\texttt{\\noindent{#1}}}}\\vspace{5mm}}A\\newcommand{\\ut}[1]{\\texttt{\\noindent{#1}}}A' > html/preambulum.tex || exit 1
+cp -a ../*.bbl .
+cat ../preambulum.tex |
+    sed 'sA\\newcommand{\\ut}\[1\]{\\vspace{5mm}\\fbox{\\parbox{130mm}{\\texttt{\\noindent{#1}}}}\\vspace{5mm}}A\\newcommand{\\ut}[1]{\\texttt{\\noindent{#1}}}A' > preambulum.tex || exit 1
 
 latex2html -noinfo -split 0 -nonavigation -lcase_tags  -html_version 4.0,unicode -toc_depth 5 --reuse 2 -subdir -mkdir -image_type png main #2>/dev/null >&2
 

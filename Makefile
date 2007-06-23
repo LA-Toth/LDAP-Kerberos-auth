@@ -49,3 +49,4 @@ simple:
 
 html:
 	@html/reparse
+	@html/postparse.php | sed 's/main.html#/#/g'>  html/main/ldap-kerberos.html
