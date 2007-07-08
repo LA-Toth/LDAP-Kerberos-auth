@@ -1,44 +1,60 @@
-\chapter{Az \textsc{ldap} és az OpenLDAP kiszolgáló}\label{cha:ldap}
+\chapter{\textsc{ldap} alapú hitelesítés}\label{cha:ldap}
 
-Az \textsc{ldap}-ot használó rendszerekkel egyszerűvé válik a hitelesítés, a felhasználók karbantartása, hiszen nem kell
-számos gépen karbantartani a \texttt{/etc/\{passwd,shadow\}} állományokat, vagy épp \textsc{nis} használata esetén
-egyetlen helyen ugyanezt megtenni. Még egyetlen gép esetén is nehézkes egy rendezetlen állomány kezelése. Ezt a
-problémát vagy adatbázis-kiszolgálóval, vagy pedig \textsc{ldap} alapú szerverrel lehet (érdemes) megoldani. Itt az
-utóbbiról lesz szó. Alapesetben az információk adatbázisban tárolódnak, azonban a kezelés módja más, és az \textsc{ldap}
-kötetlenebb struktúrát jelent.
+A jegyzetben bemutatott rendszer egyik alapvető eleme az OpenLDAP kiszolgáló, amelyen elsősorban a felhasználók adatait
+tartjuk. Igazi ereje egy közép- és nagyvállalati, vagy éppen egyetemi, sok számítógépből álló hálózat esetén mutatkozik
+meg, azonban néhány gép esetén is érdemes elgondolkodni a használatán. Sokgépes környezeben már nem elegendő  minden
+egyes gépen módosítani a \texttt{/etc/passwd} és \texttt{/etc/shadow} állományokat, ráadásul az a sajnálatos eset is
+előfordulhat, hogy a több százból egy-két gépen a két fájl módosításáról elfeledkezett a rendszergazda. A felhasználók
+számának növekedésével együtt az állományok karbantartása és a benük történő keresés egyaránt lassú. Sok esetben több
+ezer - vagy éppen több tízezer - felhasználó lehet egy ilyen rendszerben.
 
-Tehát a jelszavak és felhasználók adatai könnyebben kezelhetők. Ez azonban csak a lehetőségek egy kis (azonban
-leggyakrabban használt) részét jelentik. A rendszer további \emph{sémákkal} bővíthető, amelyek azt mondják meg, hogy az
-egyes adatoknak milyen lehetséges tulajdonságai lehetnek, ezért a felhasználók adatai tovább bővíthetők, így bármilyen
-szolgáltatás használhatja ezt az adatbázist. Erre tipikus példa a \emph{Samba} kiszolgáló.
-
-Az \textsc{ldap} adatbázis szinte bármit tartalmazhat, ezért alkalmas vállalati címtár kiszolgálónak is, vagy éppen
-bármilyen egyéb adat tárolására is, akár egy igazi könyvtárban található könyvek adatainak tárolására is (bár nem ez az
-ideális felhasználási mód). Ezek szerint  az adatbázis lényegében \emph{bármilyen adatot} tartalmazhat
-\emph{bármiről}.
-
-Ha pedig kiegészítjük Kerberos (\ref{cha:kerberos}.\ fejezet) használatával, akkor az egyszeri bejelentkezés előnyeit is
-élvezhetjük.
+Az \textsc{ldap} alapvető előnye, hogy elegendő egyetlen egy gépen módosítani az adatokat, és az új felhasználóról, vagy
+éppen egy régebben hozzáadott felhasználóról  minden információ a módosítás pillanatától kezdve az összes gépen
+elérhető.  Ha pedig kiegészítjük Kerberos (\ref{cha:kerberos}.\ fejezet) használatával, akkor az egyszeri bejelentkezés
+előnyeit is élvezhetjük.
 
 
-\section{Az \textsc{ldap}}
+\section{Az \textsc{ldap} jellemzői}
 
-A legelső kérdés, hogy mi az \textsc{ldap}?
-Az \textsc{ldap}  ({\em Lightweight Directory Access Protocol}) egy hierarchikusan (faszerkezetbe) szervezett adatbázis
-elérésére szolgáló protokoll, mely ``könyvtárszolgáltatás'' (directory service) elérését teszi lehetővé.
-A fában tárolt adatokat egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja,
-amely név több részből áll, a  különböző részek alapján történik a bejegyzések (objektumok) fába szervezése. Minden
-bejegyzéshez tartozik egy vagy több
-tulajdonság, amit egy {\em kulcs-érték} pár határoz meg. A kulcs lehet például a ``common name'' (cn) - mindennapi
-név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező. Egy-egy
-tulajdonság (lényegében maga a~kulcs) többször is szerepelhet egy objektumon belül.
+Az \textsc{ldap}  egy hálózati protokollt jelölő betűszó, amely a {\em Lightweight Directory Access Protocol}
+rövidítése. A protokollal ún.\ \emph{könyvtárszolgáltatásokat}  (directory service \cite{dirservice}) lehet elérni, ahol
+az adatokat rendezve, keresesésre optimalizált formában tárolják -- egy fastruktúrába szervezetten. A fastruktúra minden
+egyes csúcsa egy-egy felhasználót vagy egyéb objektumot jelöl, maga a fa pedig belső tárolású. A csúcsok neve a
+gyökértől hozzá vezető út csúcsait írja le, ez egy egyedi név (distinguished name). A csúcsokat általában bejegyzéseknek
+(entry) szokták hívni.
 
-A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúcsok) osztályai írják le
-(tulajdonságosztályok). A nevük: \texttt{objectclass}, és a jelölés erejéig legalábbis  maguk is (speciális)
-tulajdonságok.
+A bejegyzések szerkezete a következő, amit megvizsgálunk. Minden csúcs kulcs-érték párokból álló halmaz. Bár azt is
+gondolhatnánk, hogy minden kulcs egyedi, valójában erről szó sincs, sokszor szükséges egyazon kulcs különböző értékekkel
+történő megadása. Ezáltal sokkal több információ sűríthető a bejegyzésbe, mintha annak gyerekeinek kellene ezt
+tartalmaznia, például egy felhasználó esetén a különböző email címeket. A kulcs-érték párokat, egészen pontosan a
+kucsokat attribútumoknak (tulajdonságoknak) hívják.
 
-Az adatbázis olvasásra, keresésre, böngészésre optimalizált, ha csak olvasni kell, akkor nagyon gyorsan megkapható a
-kívánt adat.
+A bejegyzések szerkezete önleíró, minden egyes csúcs hordozza azt az információt is, hogy milyen tulajdonságai vannak,
+ezeknek mi a szintaxisa (azaz milyen érvényes értékkel bírhatnak), és hogy kell, hogy szerepeljenek egy adott
+bejegyzésben, mivel egyes attribútumok megadása nem kötelező. Látható, hogy ha  minden egyes csúcsban megadnánk a
+szerkezetre vonatkozó információkat is, akkor ez jóval több lenne, mint aminek a tárolására szolgál, ráadásul minden
+csúcsban ismétlődnek. Célszerűbb valamilyen hivatkozást megadni a szerkezetet leíró adatokra, így az értékes információ
+maradna a hangsúlyos. A hivatkozás szerepétt egy speciális attribútum, az \texttt{objectClass} tölti be, ráadásul egy
+bejegyzésen belül több is lehet belőle, ezáltal lényegében bármilyen információ megadható az adott
+bejegyzésben. Amire hivatkozik, az valamelyik \emph{sémának} egy része, a séma attribútumok, különböző értékek
+szintaxisát, valamint objektumosztályok (típusoknak nevezem) definícióját tartalmazza.
+
+Az eddigiek ismeretében nem meglepő, hogy egy \textsc{ldap} adatbázis nem csupán a felhasználók adatainak tárolására
+szolgál, hanem sokkal többre képes. A jegyzetben mégis főleg ezt tárgyaljuk.
+
+
+\section{Az \textsc{ldap} bejegyzések attribútumai}
+
+A bejegyzéseknek a szerkezetetet leíró \texttt{objectClass} attribútumon felül számos további attribútuma lehet,
+valamint egy kötelező: a neve, vagyis a \texttt{dn}, amely a faszerkezetben elfoglalt helyét jelöli. A gyökzérig vezető
+útra eső minden egyes csúcs neve része ennek, a csúcsokat vessző választja el, a gyökér található a legvégén (bár a
+gyökérnek lehet több részből álló neve, mintha neki is lenne szülője, ilyen név pl.\ a
+\texttt{dc=example,dc=com}). Tehát a csúcs nevének második fele a szülőjének teljes neve, amely előtt, tőle vesszővel
+elválasztva a bejegyzés valamely attribútuma szerepel kulcs=érték formában.
+
+Az \texttt{objectClass} révén egy bejegyzésnek több ``típusa'' is lehet, azonban legalább egynek struktúrálisnak
+(structural) kell lennie, hogy a fába be lehessen építeni. Bizonyos esetekben nincs értelme többet is megadni, ekkor
+elég a \texttt{top} nevű típust (\texttt{objectClass}-t) megadni.
 
 \section{Az OpenLDAP kiszolgáló}
 
