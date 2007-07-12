@@ -1,4 +1,4 @@
-\chapter{\textsc{ldap} alapú hitelesítés}\label{cha:ldap}
+\chapter{Az \textsc{ldap} beállítása és használata}\label{cha:ldap}
 
 A jegyzetben bemutatott rendszer egyik alapvető eleme az OpenLDAP kiszolgáló, amelyen elsősorban a felhasználók adatait
 tartjuk. Igazi ereje egy közép- és nagyvállalati, vagy éppen egyetemi, sok számítógépből álló hálózat esetén mutatkozik
@@ -56,26 +56,25 @@ Az \texttt{objectClass} révén egy bejegyzésnek több ``típusa'' is lehet, az
 (structural) kell lennie, hogy a fába be lehessen építeni. Bizonyos esetekben nincs értelme többet is megadni, ekkor
 elég a \texttt{top} nevű típust (\texttt{objectClass}-t) megadni.
 
-\section{Az OpenLDAP kiszolgáló}
-
-A jegyzetben ismertetett rendszer egyik központi része az OpenLDAP szerver. A kiszolgáló az \textsc{ldap} protokollt
-használja, általában \textsc{tcp}/\textsc{ip} kapcsolaton keresztül lehet hozzá csatlakoizni. Azonban a helyi gépen
-(amelyen az \textsc{ldap} kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
-
-A következőkben az \textsc{ldap} szerver alapvető beállítását, majd pedig a rendszer kibővítését titkosítással,
-Kerberos alapú hitelesítéssel, végül pedig a szerver adatbázisának replikálását olvashatjuk.
 
 
-\section{Telepítés}
-Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatóak, melyet az
-\texttt{emerge openldap} paranccsal telepíthetünk Gentoo Linux esetén, azonban például Debian alatt már több csomagból
-áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, és a~telepítő egy~minimális fastruktúrát létrehoz a~\texttt{slapd.conf}
+\section{Az OpenLDAP kiszolgáló telepítése és beállítása}
+
+Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatók a Gentoo Linuxokon,
+melyet az \texttt{emerge openldap} paranccsal telepíthetünk, azonban például Debian alatt már több csomagból áll, ezek:
+\texttt{slapd} és \texttt{ldap-utils}, és a~telepítő egy~minimális fastruktúrát létrehoz a~\texttt{slapd.conf}
 állománnyal együtt, ezeket azonban Gentoo-n nekünk kell megtennünk.
 
-A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt és \texttt{/etc/ldap} Debian rendszer esetén.
+A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt és \texttt{/etc/ldap} Debian rendszer esetén. A
+könyvtárban két lényeges fájl van, a \texttt{slapd.conf}, amely a szerver (slapd) beállításait tartalmazza, valamint a
+\texttt{slapd.conf} állományt, melyet a kliensek használnak. A sémákat tartalmazó fájlok is itt vannak, a
+\texttt{schema} alkönyvtárban, \texttt{.schema} kiterjesztéssel.
 
-\section{A szerver beállítófájlja: a slapd.conf}
-A \texttt{/etc/openldap/slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
+Az \textsc{ldap} alapú azonosításhoz szükség van az \texttt{nss-ldap} csomagra is, amelynek a beállításait a
+\texttt{/etc/ldap.conf} tartalmazza (Gentoo esetén).
+
+\subsection{A kiszolgáló beállítófájlja}
+A \texttt{slapd.conf} fájl tartalmazza a szerver beállításait, melyek nagy vonalakban a következőképpen csoportosíthatók:
 
 \begin{itemize}
 \item Sémák (a használható attribútumokat adják meg)
@@ -88,8 +87,12 @@ A \texttt{/etc/openldap/slapd.conf} fájl tartalmazza a szerver beállításait,
 
 Figyeljünk arra, hogy ne olvashassa mindenki ezt a fájlt!
 
-\paragraph{Séma} Az általunk használt séma az alábbi:
+\paragraph{Séma} 
+Bár megtehetjük, hogy minden egyes sémát hozzáveszünk a beállításokhoz, ez sokszor szükségtelen. Általában ha valamely
+objektumosztály nem található, a neve már utal arra, hogy melyik fájlban található, de ha esetleg mégsem lenne
+egyértelmű, a séma fájlokban meg lehet keresni a definíciót, így egyértelművé válik az állomány neve is.
 
+\begin{figure}
 \begin{Verbatim}[frame=single]
 include         /etc/openldap/schema/core.schema
 include         /etc/openldap/schema/cosine.schema
@@ -97,76 +100,104 @@ include         /etc/openldap/schema/inetorgperson.schema
 include         /etc/openldap/schema/nis.schema
 include         /etc/openldap/schema/misc.schema
 \end{Verbatim}
+  \caption{A felhasznált sémák}
+  \label{fig:ldap-schemas}
+\end{figure}
   
-A felsoroltak közül az első a rendszernek kell lényegében, a következő három az általánosan használt attribútumokat tartalmazza
-(többek között a felhasználók definiálásához). Az utolsó ``\texttt{misc}'', azaz nem megszokott, most az ebben
-definiáltakkal lesz meghatározva az a cím, amelyre érkezett leveleket az adott felhasználó fogadhatja, illetve melyre
-továbbküldheti (ha nem küldi tovább, akkor is szükséges). Az \textsc{ldap}-ban tárolt álnevek (aliases) meghatározásához is
-szükséges.
 
-\paragraph{Jogok (\textsc{acl})} A következő beállítás nagyon alapszintű, érdemes alaposabban utánaolvasni az OpenLDAP
-leírásában, vagy épp az interneten, mert esetleg sokkal bonyolultabb hozzáférés-szabályozásra lesz szükség.
+Az általunk használt sémákat \aref{fig:ldap-schemas}.\ ábra tartalmazza, azonban a legtöbb esetben nincsen mindegyikre
+szükség. Az első az, amelyet a rendszer alapértelmezetten használ, annak mindig ott kell lennie. A következő három sémát
+elsősorban a felhasználók definiálásához használjuk, de címtárszolgáltatás (elektronikus telefonkönyv) célból is
+használhatóak. Az utolsó a ``\texttt{misc}'', mely további attribútumokat és
+objektumosztályokat tartalmaz, és lehet, hogy másik rendszeren mások vannak benne, vagy egyáltalán nincs is. Ebben
+definiáltak azok  az email-cím attribútumok, amelyeket a levelek fogadásához, valamint továbbításához használunk fel a
+későbbiekben.
 
-A jelszót csak saját maga tudja írni, valamint az admin.
+\paragraph{A jogosultságok kezelése}
+A bejegyzésekhez történő hozzáférés részletesen szabályozható, a faszerkezet csúcsainak különböző jogosultság
+adható. Ezeken felül két kitüntetett eset van, az egyik maga a csúcs (\texttt{self}), a másik pedig a névtelen (nem
+hitelesített) hozzáférés (\texttt{anonymous}). Csúcsra vagy attribútumra lehet megmondani, hogy kinek milyen joga van,
+az első rá vonatkozó szabály lép életbe, azaz ha például valakinek megtiltjuk, hogy valamely részfát elérje, akkor
+később a részfa valamely attribútumára vonatkozó engedélyezés már nem vonatkozik rá, hiszen már korábban volt egy olyan
+szabály, amely az ő hozzáférését megtiltotta.
 
+ 
+\Aref{fig:ldap-acl}.\ ábrán látható beállítás beállítás nagyon alapszintű, érdemes alaposabban utánaolvasni az OpenLDAP
+leírásában, hiszen bizonyos esetekben sokkal bonyolultabb hozzáférés-szabályozásra lehet szükség. Jelen esetben miden
+bejegyzés esetén a \texttt{userPassword} tulajdonságot önmaga be tudja állítani, vakamint a rendszer
+``szuperfelhasználója'' (rootdn), akinek jogát nem lehet korlátozni, végül egy pont emiatt létrehozott, kevesebb joggal
+bíró admin ``felhasználó''. A következő kategória a \texttt{People} szervezeti egység (lásd később) alatti bejegyzések
+elérése. Az utolsó rész minden további csúcsot jelüli. Látszik, hogy az utolsó kettő jogosultságszabályozása azonos,
+ezért elég lenne az összes bejegyzésre (\texttt{*}-ra) vonatkozó részt meghagyni.
+
+\begin{figure}
 \begin{Verbatim}[frame=single]
 access to attrs=userPassword
     by dn="cn=admin,dc=panthernet" write
     by anonymous auth
     by self write
     by * none
-\end{Verbatim}    
 
-A következő két beállítás nagyjából azonos a jelenlegi esetben, csak az egyik szükséges!
-
-\begin{Verbatim}[frame=single]
 access to dn.children="ou=People,dc=panthernet"
         by dn="cn=admin,dc=panthernet" write
         by * read
 
-#access to *
-#        by dn="cn=admin,dc=panthernet" write
-#        by * read
+access to *
+        by dn="cn=admin,dc=panthernet" write
+        by * read
 \end{Verbatim}
+  \caption{Alapvető jogosultságok beállítása}
+  \label{fig:ldap-acl}
+\end{figure}
 
 
-Látszik, hogy az admin nevű felhasználónak joga van írni bármilyen bejegyzést. De ki is ő? A rendszerben van egy
-kitüntetett felhasználó (\texttt{rootdn}, akinek a jogosultságát nem lehet szabályozni, bármit módosíthat, a
-neve és a jelszava a\texttt{slapd.conf} fájlban adható meg. Éppen ezért csak bizonyos esetekben szabad használni, ha
-máshogyan nem oldható meg a módosítás. Ebből következően szükség van egy kitüntetett felhasználóra is, amely az~\textsc{ldap}
-adminisztrátor lesz, a Debian telepítésnek megfelelően \texttt{cn=admin,dc=domain,dc=hu} formában hozzuk létre.
+A \texttt{slapd.conf} tartalmazza az előbb említett ``szuperfelhasználó''  nevét a \texttt{rootdn} bejegyzésben,
+valamint jelszavát a \texttt{rootpw}-ben. Mivel bármihez hozzáfér, ezért lényeges, hogy a jelszavát biztonságosan
+tároljuk. A rendszer lehetőséget ad cleartext jelszavak használatára, azonban jobb, ha már itt is kódolt formában
+szerepel. Mikor van szükség e felhasználóra? Egyrészt amikor kezdetben létre kell hozni a faszerkezet csúcsait és még
+semmi sincs az \textsc{ldap} adatbázisban, másrészt amikor kevesebb joggal rendelkező felhasználó nem tudja valamiért az
+adott műveletet (létrehozás, módosítás, törlés) elvégezni. Ez utóbbi esetben érdemes elgondolkodni azon, hogy a
+jogosultságok kiosztása megfelelő-e.
+
+A másik említett felhasználó az \texttt{admin}, amely nem \textsc{ldap}-specifikus, azaz bármi lehetne. Célja, hogy egy
+olyan felhasználó is létezzen, akinek a \texttt{rootdn}-nel hasonló jogköre van, azonban bármikor módosíthatók a jogai,
+és a rendszer épségét kevésbé veszélyezteti (a másik esetben ha illetéktelen hozzáfér a rendszerhez a \texttt{rootdn}
+nevében, akkor mindenhez hozzáfér). Az admin felhasználót a Debian telepítésnek megfelelően
+\texttt{cn=admin,dc=domain,dc=hu} formában hozzuk létre.
 
 
-\paragraph{Az adatbázis és a root ``user''} Az adatokat általában Berkeley adatbázis tartalmazza, mely nagyon
-gyors, ámde nem hordozható, vagyis maguk az adatbázisfájlok nem vihetőek át másik gépre. Ehhez exportálni kell az
-adatbázist, a másik gépen pedig importálni. A faszerkezet gyökerét, aminek a neve minden csúcs nevének végződése, a
-\texttt{suffix} beállítás tartalmazza. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
-azonosítja.
 
+
+
+\subsection{Az adatbázis és a root ``user''} Az adatokat általában Berkeley adatbázis tartalmazza, mely nagyon
+gyors, viszont sajnos nem hordozható, vagyis maguk az adatbázisfájlok nem vihetőek át másik gépre. Sőt, előfordulhat,
+hogy frissítés után már nem működik, ezért mindkét esetben exportálni kell az adatbázist a \texttt{slapcat} paranccsal,
+a másik gépen pedig (és esetleg a lokálison is) importálni. Ez utóbbi megtehető űres adatbázis esetén a \texttt{slapadd}
+paranccsal -- nem üres adatbázis esetén kicsit bonyolultabb.
+
+Az adatbázisra,  faszerkezet gyökerére és a ``szuperfelhasználó'' -- ``root'' -- adataira vonatkozó beállításokat
+\aref{fig:ldap-db}.\ ábra tartalmazza. A gyökercsúcsot, aminek a neve minden csúcs nevének végződése, a
+\texttt{suffix} beállítás adja meg. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
+azonosítja. 
+
+\begin{figure}
 \begin{Verbatim}[frame=single]
 database        bdb
 suffix          "dc=panthernet"
 rootdn          "cn=Manager,dc=panthernet"
-# Cleartext passwords, especially for the rootdn, should
-# be avoid.  See slappasswd(8) and slapd.conf(5) for details.
-# Use of strong authentication encouraged.
 rootpw          {SSHA}blabla
 
 checkpoint      32      30 # <kbyte> <min>
-
-
-# The database directory MUST exist prior to running slapd AND
-# should only be accessible by the slapd and slap tools.
-# Mode 700 recommended.
 directory       /var/lib/openldap-data
-# Indices to maintain
 index   objectClass     eq
-#
+
 LogLevel 0
 \end{Verbatim}
+  \caption{Adatbázis beállítások és a rootdn megadása}
+  \label{fig:ldap-db}
+\end{figure}
 
-
-Mint látható, a jelszót is meg kell adni. Lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
+Mint említettem, lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
 célszerű, ugyanis ha esetleg valami hiba folytán a \texttt{slapd.conf} állományt más is olvashatja, akkor azonnal
 megvan. Ha egy bonyolult jelszót választunk, és titkosítva tároljuk, akkor akár évekig, sőt esetleg évezredekig
 tartana kitalálni a jelszót. Az \textsc{SSHA} egy megfelelő algoritmus, egyirányú, ezért
@@ -176,9 +207,12 @@ megtűzdelve, és legyen minél hosszabb. Mivel a jelszó hash formájában tár
 azonos hash-t kapunk. \textsc{SHA1} esetén 160 bites a hash hossza, ennél hosszabb jelszavak esetén garantáltan lesz több
 egyező is.
 
-
 A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használata:\\
 \texttt{slappasswd -h {SSHA}}
+
+
+
+
 
 
 Az adatbázisról (\texttt{database} beállításról) még egyszer: az adatbázis lehet többféle, a legegyszerűbb az
@@ -210,7 +244,7 @@ keresés (tehát részfát határoz meg). Az \texttt{URI} a szerver elérését 
 a titkosított protokoll (ldaps) szerepel, az ``ldaps.panthernet'' nevű gépen érhető el a szerver, a titkosítás miatt meg
 kell adni azt a~helyet, ahol a \textsc{ca} tanúsítványa található, ez a \texttt{\textsc{tls}\_\textsc{cacert}} beállítás.
 
-\section{A rendszer felkészítése az \textsc{ldap} használatához}
+\section{A \texttt{ldap} hitelesítés beállítása}
 A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az \textsc{ldap}-ban tárolt
 felhasználók ténylegesen létezhessenek az adott gépen (pl. az \texttt{id} parancs lássa őket), fel kell telepíteni 
 az ``nss\_ldap'' csomagot. Általában az \textsc{ldap}
@@ -261,7 +295,7 @@ elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
 Ha nem akarjuk, hogy az \textsc{ldap}-ban tárolt jelszavakat használja a rendszer, akkor a~\texttt{passwd} beállításnál nem
 szükséges a \texttt{ldap} megadása
 
-\section{Az adatok feltöltése}
+\section{Az \textsc{ldap} bejegyzések hozzáadása, módosítása, törlése}
 Egyelőre még egy teljesen üres adatbázisunk van, viszont már minden megvan ahhoz, hogy a teljes rendszer működjön. Akár
 le is kérdezhetjük az adatbázis tartalmát az \texttt{ldapsearch -x} parancs kiadásával. Természetesen a kimenet üres
 lesz (pár megjegyzést nem számítva).
