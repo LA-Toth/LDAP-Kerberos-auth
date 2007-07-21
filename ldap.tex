@@ -1,12 +1,12 @@
 \chapter{Az \textsc{ldap} beállítása és használata}\label{cha:ldap}
 
-A jegyzetben bemutatott rendszer egyik alapvető eleme az OpenLDAP kiszolgáló, amelyen elsősorban a felhasználók adatait
-tartjuk. Igazi ereje egy közép- és nagyvállalati, vagy éppen egyetemi, sok számítógépből álló hálózat esetén mutatkozik
-meg, azonban néhány gép esetén is érdemes elgondolkodni a használatán. Sokgépes környezeben már nem elegendő  minden
-egyes gépen módosítani a \texttt{/etc/passwd} és \texttt{/etc/shadow} állományokat, ráadásul az a sajnálatos eset is
-előfordulhat, hogy a több százból egy-két gépen a két fájl módosításáról elfeledkezett a rendszergazda. A felhasználók
-számának növekedésével együtt az állományok karbantartása és a benük történő keresés egyaránt lassú. Sok esetben több
-ezer - vagy éppen több tízezer - felhasználó lehet egy ilyen rendszerben.
+A jegyzetben bemutatott rendszer egyik alapvető eleme az OpenLDAP kiszolgáló,amelyen a felhasználók adatait
+tartjuk. Igazi ereje sok számítógépből álló hálózat esetén mutatkozik meg,  amilyen egy közép- és nagyvállalati, vagy
+éppen egyetemi hálózat, azonban néhány számítógép esetén is érdemes elgondolkodni a használatán.  Egy ilyen, sokgépes
+környezeben már nem elegendő  minden egyes gépen módosítani a \texttt{/etc/passwd} és \texttt{/etc/shadow} állományokat,
+ráadásul az a sajnálatos eset is előfordulhat, hogy a több százból egy-két gépen a két fájl módosításáról elfeledkezett
+a rendszergazda. A felhasználók számának növekedésével együtt az állományok karbantartása és a benük történő keresés
+ideje egyaránt megnő, továbbá sok esetben több ezer - vagy éppen több tízezer - felhasználó lehet egy ilyen rendszerben.
 
 Az \textsc{ldap} alapvető előnye, hogy elegendő egyetlen egy gépen módosítani az adatokat, és az új felhasználóról, vagy
 éppen egy régebben hozzáadott felhasználóról  minden információ a módosítás pillanatától kezdve az összes gépen
@@ -197,37 +197,34 @@ LogLevel 0
   \label{fig:ldap-db}
 \end{figure}
 
-Mint említettem, lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
-célszerű, ugyanis ha esetleg valami hiba folytán a \texttt{slapd.conf} állományt más is olvashatja, akkor azonnal
-megvan. Ha egy bonyolult jelszót választunk, és titkosítva tároljuk, akkor akár évekig, sőt esetleg évezredekig
-tartana kitalálni a jelszót. Az \textsc{SSHA} egy megfelelő algoritmus, egyirányú, ezért
+Az adatbázis, amely az \textsc{ldap} mögött van (backend), többféle lehet, a legegyszerűbb az
+\texttt{ldbm}, a legjobb választás azonban a  \texttt{bdb} (Berkeley DB), melynek fájljai a~\texttt{directory}
+beállításnak megfelelő könyvtárban lesznek. A könyvtárra a \texttt{700} jogot ajánlott megadni, hogy ne tudja a
+könyvtár tulajdonosán más is olvasni az állományokat. Az  \texttt{index} a  kereséshez használt index.
+
+
+Mint említettem, lehetne titkosítás nélküli (cleartext) jelszót is megadni -- \texttt{rootpw}, valamint az összes később
+definiált felhasználó --, de ez nem célszerű, ugyanis ha esetleg valami hiba folytán a \texttt{slapd.conf} állományt más
+is olvashatja, akkor azonnal felhasználható. Ha egy bonyolult jelszót választunk, és titkosítva tároljuk, akkor akár
+évekig, sőt esetleg évezredekig tartana kitalálni a jelszót. Az \textsc{SSHA} egy megfelelő algoritmus, egyirányú, ezért
 nem lehet a jelszót visszaállítani, csak bruteforce-szal törhető (vagy szótári támadással, ha rossz a jelszó). Tehát a
 jó jelszó: kis-  és nagybetűk, számok vegyesen, lehetőleg egyéb nyomtatható karakterekkel (pl. \#, \&, ! stb.)
 megtűzdelve, és legyen minél hosszabb. Mivel a jelszó hash formájában tárolódik, ezért több különböző jelszót megadva
 azonos hash-t kapunk. \textsc{SHA1} esetén 160 bites a hash hossza, ennél hosszabb jelszavak esetén garantáltan lesz több
 egyező is.
 
-A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használata:\\
+A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használatára 1 példa:\\
 \texttt{slappasswd -h {SSHA}}
 
-
-
-
-
-
-Az adatbázisról (\texttt{database} beállításról) még egyszer: az adatbázis lehet többféle, a legegyszerűbb az
-\texttt{ldbm}, a legjobb választás azonban a  \texttt{bdb} (Berkeley DB), melynek fájljai a~\texttt{directory}
-beállításnak megfelelő könyvtárban lesznek. A könyvtárra a \texttt{700} jogot ajánlott megadni, hogy ne tudja a
-könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a  kereséshez használt index.
-
-A \texttt{LogLevel} mondja meg, mennyire bőbeszédűen (verbose) írja bele a syslog-ba, hogy mi történik. A ``0'' érték
-hatására szinte semmit sem ír, hibakeresésnél jön jól.
+Az ábrán még egy beállítás látható, \texttt{LogLevel}, mely azt mondja meg, mennyire bőbeszédűen (verbose) írja bele a
+syslog-ba, hogy mi történik. A ``0'' érték hatására szinte semmit sem ír, hibakeresésnél viszont elengedhetetlen.
 
 \section{Az ldap.conf}
-A szerverhez történő hozzáférés beállításait a \texttt{/etc/openldap/ldap.conf} állomány tartalmazza.
-Ez a fájl mondja meg, hogy az \texttt{ldapsearch}, és hasonló parancsok alapesetben milyen géphez, milyen protokollal
-és milyen végződésű helyhez (lásd a fentebbi \texttt{suffix}, itt \texttt{\textsc{base}}) csatlakozik. A fájl mindenki által
-olvasható.
+A szerverhez történő hozzáférés beállításait a \texttt{/etc/openldap/ldap.conf} állomány tartalmazza.  Ez a fájl mondja
+meg, hogy az \texttt{ldapsearch}, és hasonló parancsok alapesetben milyen géphez, milyen protokollal és milyen végződésű
+helyhez csatlakozik. Ez utóbbi -- a \textsc{base} -- a \textsc{suffix} beállításhoz hasonló, meg is egyezhet vele, ámde
+míg jelen esetben a teljes fában keresne a program, beállítható, hogy csak valamely részfát használja (pl.\ csak a
+felhasználókat tartalmazó részfát). A fájl mindenki által olvasható, egy példa:
 
 \begin{Verbatim}[frame=single,label=ldap.conf]
 BASE    dc=panthernet
@@ -239,49 +236,56 @@ SASL_REALM panthernet
 \end{Verbatim}
 
 
-A \texttt{\textsc{base}} után a faszerkezet valamely csúcsának egyedi nevét kell megadni, amely alatti bejegyzéseken történik a
-keresés (tehát részfát határoz meg). Az \texttt{URI} a szerver elérését adja meg protokollal együtt. A példában
-a titkosított protokoll (ldaps) szerepel, az ``ldaps.panthernet'' nevű gépen érhető el a szerver, a titkosítás miatt meg
-kell adni azt a~helyet, ahol a \textsc{ca} tanúsítványa található, ez a \texttt{\textsc{tls}\_\textsc{cacert}} beállítás.
+A \texttt{\textsc{base}} után a faszerkezet valamely csúcsának egyedi nevét kell megadni, amely alatti bejegyzéseken
+történik a keresés. Az \texttt{URI} a szerver elérését adja meg protokollal együtt (titkosított, vagy kódolatlan
+változat). A példában a titkosított protokoll (ldaps) szerepel, az ``ldaps.panthernet'' nevű gépen érhető el a szerver,
+a titkosítás miatt meg kell adni azt a~helyet, ahol a \textsc{ca} tanúsítványa található, ez a
+\texttt{\textsc{tls}\_\textsc{cacert}} beállítás.
+
 
 \section{A \texttt{ldap} hitelesítés beállítása}
-A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az \textsc{ldap}-ban tárolt
-felhasználók ténylegesen létezhessenek az adott gépen (pl. az \texttt{id} parancs lássa őket), fel kell telepíteni 
-az ``nss\_ldap'' csomagot. Általában az \textsc{ldap}
-szerver különálló gépen található, de nincs mindig így, ezért néha azon is be kell állítani a csomagot
-(\filename{/etc/ldap.conf} tartalmazza a beállításait).
+Az előzőkben a szerver oldali beállítást és az \textsc{ldap} kiszolgálótól történő lekérdezés módját tárgyaltuk. Ennyi
+azonban nem elegendő ahhoz, hogy a számítógép felhasználóinak azonosítása \textsc{ldap} alapon történjen, például az
+\textsc{id} parancs még nem látja őket. Ehhez a \textsc{/etc/nsswitch.conf} fájlban rá kell venni a rendszert, hogy
+\textsc{ldap}-ot használjon. Mi sem egyszerűbb: csak fel kell rakni a \texttt{nss-ldap} csomagot, és még néhány apró
+módosítást kell elvégeznünk, és máris minden működik. Persze a felhasználókat létre is kell hozni, ezt
+\aref{sec:ldap-add-modify}.\ fejezetben fogjuk megtekinteni. 
+A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az \textsc{ldap}-ban
+tárolt felhasználók ténylegesen létezhessenek az adott gépen (pl.\ az \texttt{id} parancs lássa őket), fel kell
+telepíteni az ``nss\_ldap'' csomagot is. Bár általában az \textsc{ldap} szerver különálló gépen található, azonban néha
+nincs így, ezért ekkor  azon is be kell állítani a csomagot.
 
 \subsection{nss-ldap}
-A névfeloldáshoz és az \textsc{ldap}-ban tárolt jelszavak kezeléséhez nélkülözhetetlen az \texttt{nss-ldap} csomag. A
-beállítófájlja a \filename{/etc/ldap.conf}, ennek néhány fontosabb beállítása:
+Ezek szerint mind a névfeloldáshoz és az \textsc{ldap}-ban tárolt jelszavak kezeléséhez nélkülözhetetlen az
+\texttt{nss-ldap} csomag. A beállítófájlja a \filename{/etc/ldap.conf}, ennek néhány, fontosabb beállítását
+\aref{fig:ldap-ldap.conf}.\ ábra tartalmazza, melyekkel már működik, ámde sokkal részletesebben beállítható.
 
+\begin{figure}[tbh]
 \begin{Verbatim}[frame=single,label=/etc/ldap.conf részlet]
 base dc=panthernet
 uri ldaps://ldaps.panthernet/
-# The distinguished name to bind to the server with.
-#Optional: default is to bind anonymously.
 #binddn cn=proxyuser,dc=padl,dc=com
-  
-# The credentials to bind with.
-# Optional: default is no credential.
 #bindpw secret
 \end{Verbatim}
+  
+  \caption{A \texttt{/etc/ldap.conf} egy részlkete}
+  \label{fig:ldap-ldap.conf}
+\end{figure}
 
-Az első kettő lényeges minden esetben. Az egyik a szerver elérését mondja meg (\texttt{uri}): ldaps, azaz titkosított,
-utána a gép neve, a másik, a \texttt{base} pedig a faszerkezet egy csúcsát, ami alatt keres a rendszer
-(\texttt{ou=People}, \texttt{ou=Group}). A rendszeren talál
+A \texttt{base} és az \texttt{uri} mindig szükséges, az első azt a részfát jelzi, amely alatt lehet keresni, valamint
+módosítani. A második a csatlakozás \textsc{URI}-ját adja meg (\texttt{protokoll://gépnév/} formában, akárcsak a
+\texttt{/etc/openldap/ldap.conf} fájl esetén).
 
 A \texttt{binddn} és a \texttt{bindpw} segítségével elérhető, hogy névtelenül ne lehessen a szerverhez csatlakozni,
-onnan információkat gyűjteni, csak az itt megadott ``felhasználó'' és jelszó tudjon. Igazából a fa bármely csúcsa
+onnan információkat gyűjteni, csak az itt megadott ``felhasználó'' és jelszó tudjon. Valójában a fa bármely csúcsa
 lehet, ha annak van joga olvasni szinte bármit, kivéve például a \texttt{userPassword} tulajdonságot. Ehhez a sor
-eleji ``\#'' karaktert (megjegyzés jele) ki kell törölni, és érvényes adatot írni a helyére.
+eleji ``\#'' karaktert (megjegyzés jele) ki kell törölni, és érvényes adatot írni a helyére. Ez a fajta megoldás azonban
+nem biztonságos, ezért van lehetőség a jelszó külön fájlban történő tárolására is.
 
-A fájl többi részét nem szükséges módosítani.
 
-
-\paragraph{nsswitch.conf} Az \textsc{ldap} szerverhez történő csatlakozást a fentebb látható módon garantáltuk, de ez
-kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a~\texttt{/etc/nsswitch.conf} fájl
-módosításával tehető meg.
+\paragraph{nsswitch.conf} Az \textsc{ldap} szerverhez történő csatlakozást a fentebb látható módon garantáltuk, ez
+azonban még nem elegendő a működéshez. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt
+a~\texttt{/etc/nsswitch.conf} fájl módosításával tehető meg.
 
 \begin{Verbatim}[frame=single,label=/etc/nsswitch.conf \textsc{ldap}-ot használó része]
 passwd:      files ldap
@@ -289,13 +293,17 @@ shadow:      files ldap
 group:       files ldap
 \end{Verbatim}
 
-Vagyis a jelszavakat, shadow jelszavakat és a csoportokat egyrészt a helyi fájlokból, másrészt \textsc{ldap}-ból olvassa ki (az
-elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
+Vagyis a felhasználókat, a  (shadow) jelszavakat és a csoportokat egyrészt a helyi fájlokból, másrészt \textsc{ldap}-ból
+olvassa ki. A \texttt{files} jelzi, hogy a kettőspont előtt álló nevű, \texttt{/etc} könyvtárban található fájlokat is
+használja.
 
-Ha nem akarjuk, hogy az \textsc{ldap}-ban tárolt jelszavakat használja a rendszer, akkor a~\texttt{passwd} beállításnál nem
-szükséges a \texttt{ldap} megadása
 
-\section{Az \textsc{ldap} bejegyzések hozzáadása, módosítása, törlése}
+
+\section{Az \textsc{ldap} bejegyzések hozzáadása, módosítása,  törlése}\label{sec:ldap-add-modify}
+A korábban tárgyalt módon a rendszert már felkészítettük az \textsc{ldap} használatára (a jelszavak használata nélkül,
+ugyanis azt majd \aref{sec:kerberos}\. fejezetben leírtak szerint Kerberosban tároljuk.
+
+
 Egyelőre még egy teljesen üres adatbázisunk van, viszont már minden megvan ahhoz, hogy a teljes rendszer működjön. Akár
 le is kérdezhetjük az adatbázis tartalmát az \texttt{ldapsearch -x} parancs kiadásával. Természetesen a kimenet üres
 lesz (pár megjegyzést nem számítva).
@@ -307,10 +315,12 @@ kézzel kell (érdemes) létrehozni a fát, utána már lehet szkriptekkel is be
 
 \subsection{Egy \textsc{ldap} bejegyzések hozzáadása}
 
-Az \textsc{ldap} a bejegyzéseket \textsc{ldif} formátumban jeleníti meg (például az ldapsearch és \texttt{slapcat} parancsok kimenete ilyen), és
-ezt a formátumot használva lehet adminisztrálni is. Ezért az összes bejegyzés (csúcs) ilyen formában van itt is.
+Az \textsc{ldap} a bejegyzéseket \textsc{ldif} formátumban jeleníti meg (például az ldapsearch és \texttt{slapcat}
+parancsok kimenete ilyen), és  ezt a formátumot használva lehet adminisztrálni is. Ezért az összes bejegyzés (csúcs)
+ilyen formában van itt is.
 
-Ha elkészítettük a fájlt, amiben az \texttt{ldif} bejegyzés(ek) van(nak), akkor az \texttt{ldapadd} paranccsal hozzá lehet adni:\\
+Ha elkészítettük a fájlt, amiben az \texttt{ldif} bejegyzés(ek) van(nak), akkor az \texttt{ldapadd} paranccsal hozzá
+lehet adni:\\
 \texttt{ldapadd -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
 
 Természetesen csak a legelső elemeket érdemes így létrehozni, utána pedig már másik felhasználót (a \texttt{-D} után egy
