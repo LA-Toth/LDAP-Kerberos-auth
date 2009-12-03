@@ -1,0 +1,553 @@
+\chapter{Az \textsc{ldap} és az OpenLDAP kiszolgáló}
+
+A jegyzetben ismertetett rendszer egyik központi része az OpenLDAP szerver. A kiszolgáló az \textsc{ldap} protokollt
+({\em Lightweight Directory Access Protocol}) használja, amely egy ``könyvtárszolgáltatás'' (directory service) elérését
+teszi lehetővé, és alapvető jellemzője, hogy olvasásra, keresésre, böngészésre (átnézésre)
+optimalizált adatbázist használ az adatok tárolására. Az adatbázis lényegében \emph{bármilyen adatot} tartalmazhat
+\emph{bármiről}, az egyetlen megkötés, hogy faszerkezetű hierarchiába kell szervezni.
+
+Az OpenLDAP szerverhez általában \textsc{tcp}/\textsc{ip} kapcsolaton keresztül lehet csatlakozni, azonban a helyi gépen (amelyen az
+\textsc{ldap} kiszolgáló található), unix socketen keresztül is történhet a kapcsolódás.
+
+A következőkben az \textsc{ldap} szerver alapvető beállítását, majd pedig a rendszer kibővítését titkosítással,
+Kerberos alapú hitelesítéssel, végül pedig a szerver adatbázisának replikálását olvashatjuk.
+
+\section{Mi is az \textsc{ldap}?}
+
+A legelső kérdés, hogy mi az \textsc{ldap}?
+Az \textsc{ldap} egy hierarchikusan (faszerkezetbe) szervezett adatbázis elérésére szolgáló protokoll. A fában tárolt
+adatokat
+egy-egy egyedi név: {\em Distinguished Name (DN)} azonosítja, amely név több részből áll, a  különböző részek alapján
+történik a bejegyzések (objektumok) fába szervezése. Minden bejegyzéshez tartozik egy vagy több
+tulajdonság, amit egy {\em kulcs-érték} pár határoz meg. A kulcs lehet például a ``common name'' (cn) - mindennapi
+név, a hozzá tartozó érték meg ``Gipsz Jakab'', vagy épp a levélcím megadására szolgáló ``mail'' mező. Egy-egy
+tulajdonság (lényegében maga a~kulcs) többször is szerepelhet egy objektumon belül.
+
+A fa csúcsainak elhagyható és kötelező tulajdonságait az objektumok (csúcsok) osztályai írják le
+(tulajdonságosztályok). A nevük: \texttt{objectclass}, és a jelölés erejéig legalábbis  maguk is (speciális)
+tulajdonságok.
+
+
+\section{Telepítés}
+Az OpenLDAP szerver és a kliensoldali programok egyaránt az \texttt{openldap} csomagban találhatóak, melyet az
+\texttt{emerge openldap} paranccsal telepíthetünk Gentoo Linux esetén, azonban például Debian alatt már több csomagból
+áll, ezek: \texttt{slapd} és \texttt{ldap-utils}, és a~telepítő egy~minimális fastruktúrát létrehoz a~\texttt{slapd.conf}
+állománnyal együtt, ezeket azonban Gentoo-n nekünk kell megtennünk.
+
+A beállítófájlok helye a \texttt{/etc/openldap} könyvtár Gentoo alatt és \texttt{/etc/ldap} Debian rendszer esetén.
+
+\section{A szerver beállítófájlja: a slapd.conf}
+A \texttt{/etc/openldap/slapd.conf} fájl tartalmazza a szerver beállításait, nagy vonalakban ezek a következők:
+
+\begin{itemize}
+\item Sémák (a használható attribútumokat adják meg)
+\item Hozzáférés-vezérlési listák (\textsc{acl})
+\item Titkosítás, hitelesítés és egyéb információk
+\item A (háttér)adatbázis típusa, a keresést segítő index módja
+\item Az \textsc{ldap} faszerkezet csúcsát jelölő név
+\item A ``szuperfelhasználó'' (\texttt{rootdn}) egyedi neve és jelszava (mindent olvas, és ír, az \textsc{acl} nem érvényes rá)
+\end{itemize}  
+
+Figyeljünk arra, hogy ne olvashassa mindenki ezt a fájlt!
+
+\paragraph{Séma} Az általunk használt séma az alábbi:
+
+\begin{VerbExample}
+include         /etc/openldap/schema/core.schema
+include         /etc/openldap/schema/cosine.schema
+include         /etc/openldap/schema/inetorgperson.schema
+include         /etc/openldap/schema/nis.schema
+include         /etc/openldap/schema/misc.schema
+\end{VerbExample}
+  
+A felsoroltak közül az első a rendszernek kell lényegében, a következő három az általánosan használt attribútumokat
+tartalmazza (többek között a felhasználók definiálásához). Az utolsó ``\texttt{misc}'', azaz nem megszokott, most az
+ebben definiáltakkal lesz meghatározva az a cím, amelyre érkezett leveleket az adott felhasználó fogadhatja, illetve
+melyre továbbküldheti (ha nem küldi tovább, akkor is szükséges). Az \textsc{ldap}-ban tárolt álnevek (aliases)
+meghatározásához is szükséges.
+
+\paragraph{Jogok (\textsc{acl})} A következő beállítás nagyon alapszintű, érdemes alaposabban utánaolvasni az OpenLDAP
+leírásában, vagy épp az interneten, mert esetleg sokkal bonyolultabb hozzáférés-szabályozásra lesz szükség.
+
+A jelszót csak saját maga tudja írni, valamint az admin.
+
+\begin{VerbExample}
+access to attrs=userPassword
+    by dn="cn=admin,dc=panthernet" write
+    by anonymous auth
+    by self write
+    by * none
+\end{VerbExample}    
+
+A következő két beállítás nagyjából azonos a jelenlegi esetben, csak az egyik szükséges!
+
+\begin{VerbExample}
+ access to dn.children="ou=People,dc=panthernet"
+        by dn="cn=admin,dc=panthernet" write
+        by * read
+
+#access to *
+#        by dn="cn=admin,dc=panthernet" write
+#        by * read
+\end{VerbExample}
+
+
+Látszik, hogy az admin nevű felhasználónak joga van írni bármilyen bejegyzést. De ki is ő? A rendszerben van egy
+kitüntetett felhasználó (\texttt{rootdn}, akinek a jogosultságát nem lehet szabályozni, bármit módosíthat, a
+neve és a jelszava a\texttt{slapd.conf} fájlban adható meg. Éppen ezért csak bizonyos esetekben szabad használni, ha
+máshogyan nem oldható meg a módosítás. Ebből következően szükség van egy kitüntetett felhasználóra is, amely az~\textsc{ldap}
+adminisztrátor lesz, a Debian telepítésnek megfelelően \texttt{cn=admin,dc=domain,dc=hu} formában hozzuk létre.
+
+
+\paragraph{Az adatbázis és a root ``user''} Az adatokat általában Berkeley adatbázis tartalmazza, mely nagyon
+gyors, ámde nem hordozható, vagyis maguk az adatbázisfájlok nem vihetőek át másik gépre. Ehhez exportálni kell az
+adatbázist, a másik gépen pedig importálni. A faszerkezet gyökerét, aminek a neve minden csúcs nevének végződése, a
+\texttt{suffix} beállítás tartalmazza. A ``root'' felhasználót a ``\texttt{rootdn}'' és a ``\texttt{rootpw}'' pár
+azonosítja.
+
+\begin{VerbExample}
+database        bdb
+suffix          "dc=panthernet"
+rootdn          "cn=Manager,dc=panthernet"
+# Cleartext passwords, especially for the rootdn, should
+# be avoid.  See slappasswd(8) and slapd.conf(5) for details.
+# Use of strong authentication encouraged.
+rootpw          {SSHA}blabla
+
+checkpoint      32      30 # <kbyte> <min>
+
+
+# The database directory MUST exist prior to running slapd AND
+# should only be accessible by the slapd and slap tools.
+# Mode 700 recommended.
+directory       /var/lib/openldap-data
+# Indices to maintain
+index   objectClass     eq
+#
+LogLevel 0
+\end{VerbExample}
+
+Mint látható, a jelszót is meg kell adni. Lehetne titkosítás nélküli (cleartext) jelszót is megadni, de ez nem
+célszerű, ugyanis ha esetleg valami hiba folytán a \texttt{slapd.conf} állományt más is olvashatja, akkor azonnal
+megvan. Ha egy bonyolult jelszót választunk, és titkosítva tároljuk, akkor akár évekig, sőt esetleg évezredekig
+tartana kitalálni a jelszót. Az \textsc{SSHA} egy megfelelő algoritmus, egyirányú, ezért
+nem lehet a jelszót visszaállítani, csak bruteforce-szal törhető (vagy szótári támadással, ha rossz a jelszó). Tehát a
+jó jelszó: kis-  és nagybetűk, számok vegyesen, lehetőleg egyéb nyomtatható karakterekkel (pl. \#, \&, ! stb.)
+megtűzdelve, és legyen minél hosszabb. Mivel a jelszó hash formájában tárolódik, ezért több különböző jelszót megadva
+azonos hash-t kapunk. \textsc{SHA1} esetén 160 bites a hash hossza, ennél hosszabb jelszavak esetén garantáltan lesz több
+egyező is.
+
+
+A jelszó előállítására szolgál a \texttt{slappaswd} parancs, ennek kimenetét kell bemásolni. Használata:\\
+\texttt{slappasswd -h {SSHA}}
+
+
+Az adatbázisról (\texttt{database} beállításról) még egyszer: az adatbázis lehet többféle, a legegyszerűbb az
+\texttt{ldbm}, a legjobb választás azonban a  \texttt{bdb} (Berkeley DB), melynek fájljai a~\texttt{directory}
+beállításnak megfelelő könyvtárban lesznek. A könyvtárra a \texttt{700} jogot ajánlott megadni, hogy ne tudja a
+könyvtár tulajdonosán más is olvasni a fájlokat. Az  \texttt{index} a  kereséshez használt index.
+
+A \texttt{LogLevel} mondja meg, mennyire bőbeszédűen (verbose) írja bele a syslog-ba, hogy mi történik. A ``0'' érték
+hatására szinte semmit sem ír, hibakeresésnél jön jól.
+
+\section{Az ldap.conf}
+A szerverhez történő hozzáférés beállításait a \texttt{/etc/openldap/ldap.conf} állomány tartalmazza.
+Ez a fájl mondja meg, hogy az \texttt{ldapsearch}, és hasonló parancsok alapesetben milyen géphez, milyen protokollal
+és milyen végződésű helyhez (lásd a fentebbi \texttt{suffix}, itt \texttt{\textsc{base}}) csatlakozik. A fájl mindenki által
+olvasható.
+
+\begin{VerbExample}[frame=topline,label=ldap.conf]
+BASE    dc=panthernet
+URI     ldaps://ldaps.panthernet
+
+TLS_CACERT /etc/openldap/ssl/cacert.pem
+
+SASL_REALM panthernet
+\end{VerbExample}
+
+A \texttt{\textsc{base}} után a faszerkezet valamely csúcsának egyedi nevét kell megadni, amely alatti bejegyzéseken történik a
+keresés (tehát részfát határoz meg). Az \texttt{URI} a szerver elérését adja meg protokollal együtt. A példában
+a titkosított protokoll (ldaps) szerepel, az ``ldaps.panthernet'' nevű gépen érhető el a szerver, a titkosítás miatt meg
+kell adni azt a~helyet, ahol a \textsc{ca} tanúsítványa található, ez a \texttt{\textsc{tls}\_\textsc{cacert}} beállítás.
+
+A \texttt{\textsc{sasl}\_\textsc{realm}} \aref{cha:Kerberos}.\ fejezetben részletesen tárgyalt Kerberos beállításaihoz
+tartozik, az alap OpenLDAP nem igényli, itt csupán a teljesség kedvéért szerepel.
+
+\section{A rendszer felkészítése az \textsc{ldap} használatához}
+
+A fentiek elvégzése után még csak a szerver beállítása és a kapcsolódás módja adott. Ahhoz, hogy az \textsc{ldap}-ban tárolt
+felhasználók ténylegesen létezhessenek az adott gépen (pl. az \texttt{id} parancs lássa őket), fel kell telepíteni 
+az ``nss\_ldap'' csomagot. Általában az \textsc{ldap}
+szerver különálló gépen található, de nincs mindig így, ezért néha azon is be kell állítani a csomagot
+(\filename{/etc/ldap.conf} tartalmazza a beállításait).
+
+\subsection{nss-ldap}
+A névfeloldáshoz és az \textsc{ldap}-ban tárolt jelszavak kezeléséhez nélkülözhetetlen az \texttt{nss-ldap} csomag. A
+beállítófájlja a \filename{/etc/ldap.conf}, ennek néhány fontosabb beállítása:
+
+\begin{VerbExample}[frame=topline,label=/etc/ldap.conf részlet]
+base dc=panthernet
+uri ldaps://ldaps.panthernet/
+# The distinguished name to bind to the server with.
+#Optional: default is to bind anonymously.
+#binddn cn=proxyuser,dc=padl,dc=com
+  
+# The credentials to bind with.
+# Optional: default is no credential.
+#bindpw secret
+\end{VerbExample}
+
+Az első kettő lényeges minden esetben. Az egyik a szerver elérését mondja meg (\texttt{uri}): ldaps, azaz titkosított,
+utána pedig a gép neve szerepel. A másik, a \texttt{base} pedig a faszerkezet egy csúcsát, ami alatt keres a rendszer
+(\texttt{ou=People}, \texttt{ou=Group}). Alapesetben ez a teljes részfát jelenti, ám ez tovább módosítható lenne.
+
+A \texttt{binddn} és a \texttt{bindpw} segítségével elérhető, hogy névtelenül ne lehessen a szerverhez csatlakozni,
+onnan információkat gyűjteni, csak az itt megadott ``felhasználó'' és jelszó tudjon. Igazából a fa bármely csúcsa
+lehet, ha annak van joga olvasni szinte bármit, kivéve például a \texttt{userPassword} tulajdonságot. Ehhez a sor
+eleji ``\#'' karaktert (megjegyzés jele) ki kell törölni, és érvényes adatot írni a helyére.
+
+A fájl többi részét nem szükséges módosítani.
+
+\paragraph{nsswitch.conf} Az \textsc{ldap} szerverhez történő csatlakozást a fentebb látható módon garantáltuk, de ez
+kevés. Még meg kell mondani, hogy az információkat onnan (is) vegye. Ezt a~\texttt{/etc/nsswitch.conf} fájl
+módosításával tehető meg.
+
+\begin{VerbExample}[frame=topline,label=/etc/nsswitch.conf \textsc{ldap}-ot használó része]
+passwd:      files ldap
+shadow:      files ldap
+group:       files ldap
+\end{VerbExample}
+
+Vagyis a jelszavakat, shadow jelszavakat és a csoportokat egyrészt a helyi fájlokból, másrészt \textsc{ldap}-ból olvassa ki (az
+elől álló nevek a \texttt{/etc/} alatti fájlneveket jelzik.
+
+Ha nem akarjuk, hogy az \textsc{ldap}-ban tárolt jelszavakat használja a rendszer, akkor a~\texttt{passwd} beállításnál nem
+szükséges a \texttt{ldap} megadása.
+
+\section{Az adatok feltöltése}
+Egyelőre még egy teljesen üres adatbázisunk van, viszont már minden megvan ahhoz, hogy a teljes rendszer működjön. Akár
+le is kérdezhetjük az adatbázis tartalmát az \texttt{ldapsearch -x} parancs kiadásával. Természetesen a kimenet üres
+lesz (pár megjegyzést nem számítva).
+
+A mostani példában felhasználók, csoportok és email álnevek (álnevek) szerepelnek. Az ezek szülőcsúcsáig bezárólag
+kézzel kell (érdemes) létrehozni a fát, utána már lehet szkriptekkel is beszúrni az adatokat.
+
+\subsection{\textsc{ldap} bejegyzések hozzáadása}
+
+Az \textsc{ldap} a bejegyzéseket \textsc{ldif} formátumban jeleníti meg (például az ldapsearch és \texttt{slapcat}
+parancsok kimenete ilyen), és ezt a formátumot használva lehet adminisztrálni is. Ezért az összes bejegyzés (csúcs)
+ilyen formában van itt is.
+
+Ha elkészítettük a fájlt, amiben az \texttt{ldif} bejegyzés(ek) van(nak), akkor az \texttt{ldapadd} paranccsal hozzá lehet adni:\\
+\texttt{ldapadd -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+
+Természetesen csak a legelső elemeket érdemes így létrehozni, utána pedig már másik felhasználót (a \texttt{-D} után egy
+másik bejegyzés, csúcs nevét) érdemes megadni.
+
+
+\subsection{Az alapvető bejegyzések}
+
+Az alapvető bejegyzések a gyökértől kezdődően lefelé a csoportokat definiáló csúcsokig tartanak, valamint az admin és
+Manager kitüntetett felhasználók (lehet, hogy a Manager felesleges is, ámde így biztosan működik).
+
+Tekintsük először a gyökeret, s annak tulajdonságait.
+A \texttt{dc} az egyedi név, az~\texttt{o} a~szervezet (organization) rövidítése.
+
+\begin{VerbExample}
+dn: dc=panthernet
+objectClass: dcObject
+objectClass: organization
+dc: panthernet
+o: PantherNetwork  
+\end{VerbExample}
+
+
+\noindent A következő \filename{slapd.conf} fájlban definiált ``felhasználó''. Az idézőjel oka, hogy valójában nem is
+felhasználó, ezért is más az objectClass. Kettő is van neki, a második (\texttt{top}) csak annyit jelent, hogy az
+objektumnak lehetnek gyerekei (bizonyos esetekben szükséges, bizonyos esetekben meg nem, ez erősen függ a többi megadott
+objectClass tulajdonságtól). Ezért a \texttt{top} egy felesleges objectClass, de nem helytelen. Lehet, hogy enélkül is
+menne a~rendszer...
+
+
+\begin{VerbExample}
+dn: cn=Manager,dc=panthernet
+objectClass: organizationalRole
+objectClass: top
+cn: Manager
+\end{VerbExample}
+
+\noindent Most tekintsük az admin felhasználó bejegyzését, mely a Manager-től független adminisztrátori jogokkal
+rendelkezik. Nem kötelező, mégis jobb, ha szét vannak választva a jogosultságok, akár több részre is. A
+\texttt{simpleSecurityObject} tartalmazza a \texttt{userPassword} tulajdonságot, vagyis lehet lehet hitelesíteni
+(jelszót ellenőrizni). A \texttt{description} mező pedig a leírás, melyet bármely objektum tartalmazhat, ámde használata
+opcionális.
+
+
+\begin{VerbExample}
+dn: cn=admin,dc=panthernet
+objectClass: organizationalRole
+objectClass: simpleSecurityObject
+cn: admin
+description: LDAP administrator
+userPassword: {SSHA}blabla
+\end{VerbExample}
+
+
+\noindent A rendszeren létező összes (valódi) felhasználó egyetlen bejegyzés alá kerül, ez pedig a~következő lesz, ahol
+szervezeti egységet jelent az \textt{organizationalUnit}:
+
+\begin{VerbExample}
+dn: ou=People,dc=panthernet
+objectClass: organizationalUnit
+ou: People  
+\end{VerbExample}
+
+
+\noindent Az email aliasokat tartalmazó ág csúcsa:
+
+\begin{VerbExample}
+dn: ou=MailAliases,dc=panthernet
+ou: MailAliases
+objectClass: top
+objectClass: organizationalUnit
+\end{VerbExample}
+
+
+\noindent A csoportokat tartalmazó szervezeti egység:
+
+\begin{VerbExample}
+dn: ou=Group,dc=panthernet
+objectClass: organizationalUnit
+ou: Group
+\end{VerbExample}
+
+
+
+\subsection{A többi bejegyzés}
+Az előbb ismertetett bejegyzéseket létrehozva meg van minden, hogy felhasználókat létrehozzunk, sőt, bármilyen
+információt tárolhatunk az \textsc{ldap} szerveren, bár most nem célunk. Eddig csak a Manager (azaz a \texttt{rootdn}) tudott
+létrehozni csúcsokat, most már megtehetjük ezt az általunk létrehozott admin felhasználó segítségével.
+
+
+Az első kettő egy-egy felhasználói bejegyzés (nagyjából így definiáltam a felhasználómat a notebookomon).
+A példában nagyon sok tulajdonság kitöltetlen. Először tekintsük át, milyen osztályokba tartozik a felhasználó, és
+melyek az egyes osztályok lényegesebb tulajdonságai.
+
+Az \texttt{inetorgPerson} többek között a következő opcionális tulajdonságokat határozza meg
+(\texttt{inetorgperson.schema}):
+\texttt{homePhone}, \texttt{homePostalAddress}, \texttt{initials}, \texttt{mail},  \texttt{mobile},
+\texttt{roomNumber}, \texttt{uid}.
+
+A \textt{person} (\texttt{core.schema}) esetén az \texttt{sn}, \texttt{cn} attribútumokat kötelező definiálni
+(vezetéknév az \texttt{sn}). Opcionális többek között: \texttt{ userPassword}, \texttt{telephoneNumber}.
+
+Az \texttt{organizationalPerson} valamilyen szervezethez tartozó személyt jelent. Itt többek között
+\texttt{telephoneNumber}, \texttt{ou} (azaz a szervezeti egység), \texttt{postalAddress} tulajdonságok szerepelnek.
+
+A \texttt{inetLocalMailRecipient} a misc.schema-ban definiált, \texttt{mailLocalAddress}, \texttt{mailHost},
+\texttt{mailRoutingAddress} az opcionális tulajdonságai. Ebből az első az, amire érkeznek a levelek, az utolsó meg
+amire mennek. Ha helyi fiók (pl. panther), akkor a levelezőszervernek (pl. Cyrus) továbbítódik, különben a megadott
+címre.
+
+A \texttt{posixAccount} és \texttt{shadowAccount} tartalmazza a \texttt{/etc/passwd} és \texttt{/etc/shadow} fájlban
+is megtalálható információkat
+
+Ha a jelszavakat nem szeretnénk Kerberos-ban tárolni, ámde \textsc{ldap}-ban igen, akkor még egy osztályt meg kell adnunk, ez
+pedig a \texttt{shadowAccount}. Most nincs szükségünk rá.
+
+Mivel a nevem ékezeteket is tartalmaz, ezért UTF-8-ban megadtam, majd pedig Base64-gyel kódoltam az egyes mezők
+értékét. Emiatt ezeknél a mezőknél nem egy, hanem két kettőspont szerepel.
+
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: inetLocalMailRecipient
+objectClass: posixAccount
+cn:: VMOzdGggTMOhc3psw7MgQXR0aWxh
+cn:: TMOhc3psw7MgQXR0aWxhIFTDs3Ro
+uid: panther
+mobile: 06
+homePostalAddress: Erd
+mailRoutingAddress: panther
+mailLocalAddress: Toth.Laszlo.Attila
+mailLocalAddress: Laszlo.Attila.Toth
+gecos: Toth Laszlo Attila
+sn:: VMOzdGg=
+homeDirectory: /home/panther
+loginShell: /bin/bash
+uidNumber: 1000
+gidNumber: 100
+ givenName:: TMOhc3psw7MgQXR0aWxh
+\end{VerbExample}
+
+\noindent illetve
+
+\begin{VerbExample}
+dn: uid=parad,ou=People,dc=panthernet
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: inetLocalMailRecipient
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: Nagy Adrienn
+cn: Adrienn Nagy
+gecos: Nagy Adrienn
+sn: Nagy
+givenName: Adrienn
+uid: parad
+mailRoutingAddress: parad
+mailLocalAddress: Nagy.Adrienn
+mailLocalAddress: Adrienn.Nagy
+homeDirectory: /home/parad
+loginShell: /bin/bash
+uidNumber: 1001
+gidNumber: 100
+\end{VerbExample}
+
+\noindent Csoportokat is létrehozhatunk, ahol felsorolhatjuk a tagokat is uid szerint:
+
+\begin{VerbExample}
+dn: cn=testgrp,ou=Group,dc=panthernet
+objectClass: top
+objectClass: posixGroup
+cn: testgrp
+gidNumber: 10000
+memberUid: panther
+memberUid: parad
+\end{VerbExample}
+
+
+Végezetül lássunk egy példát a levelezésben használt álnevekre. A bejegyzés akár több álnevet is tartalmazhat
+(\texttt{mailLocalAddress} tulajdonság), és akár több címre is továbbítódhat. Ez utóbbit a \texttt{mailRoutingAddress}
+tulajdonsággal adhatjuk meg, amelyből az előzővel ellentétben egyetlen egy lehet, és az összes címzettet szóközzel
+elválasztva meg kell adni utána.
+
+\begin{VerbExample}
+dn: uid=mindenki,ou=MailAliases,dc=panthernet
+objectClass: account
+objectClass: top
+objectClass: inetLocalMailRecipient
+mailLocalAddress: mindenki
+mailLocalAddress: everyone
+mailLocalAddress: everybody
+uid: mindenki
+mailRoutingAddress: panther parad
+\end{VerbExample}
+
+
+\subsection{Az \textsc{ldap} bejegyzések módosítása}
+
+Sokszor menet közben kell felvenni újabb adatokat, vagy meglévőket módosítani, esetleg törölni néhányat. Ezt mind a
+következő paranccsal tehetjük meg:\\
+\texttt{ldapmodify -xWD cn=Manager,dc=panthernet -f fájlnév.ldif}
+
+Nézzük sorra, hogy mit hogyan lehet:
+
+\noindent  --- Attribútum hozzáadása:
+
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+add: userPassword
+userPassword: {KERBEROS}panther@PANTHERNET
+\end{VerbExample}
+
+\noindent --- Attribútum cseréje:
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+replace: userPassword
+userPassword: {KERBEROS}panther2@PANTHERNET
+\end{VerbExample}
+
+\noindent --- Lehet törölni is egy attribútumot, például:
+
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+delete: userPassword
+\end{VerbExample}
+
+
+\noindent --- Ha egy adott attribútumot (amiből több különböző értékű is lehet) kellene, akkor:
+
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+delete: mail
+mail: panther@elte.hu
+\end{VerbExample}
+
+\noindent --- Több is egyszerre:
+
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+changeType: modify
+add: userPassword
+userPassword: {KERBEROS}panther@PANTHERNET
+-
+replace: homePostalAddress
+homePostalAddress: Erd, stb.
+\end{VerbExample}
+
+\noindent --- A teljes bejegyzés törlése:
+  
+\begin{VerbExample}
+dn: uid=panther,ou=People,dc=panthernet
+changeType: delete
+\end{VerbExample}
+
+
+
+\section{Titkosítás}
+
+Az eddigiek alapján nagyjából működőképes a rendszerünk, azonban vannak
+hiányosságai. Az egyik az, hogy a szerver és a kliens között titkosítatlan a kommunikáció, ezért egy harmadik személy
+is hozzáférhet az adatokhoz, ha valahogyan meg tudja szerezni a kliens-szerver kapcsolat csomagjait. A szerver a \textsc{tls}
+(és \textsc{ssl}) titkosítást támogatja (Transport Layer Security és Secure Socket Layer kifejezések rövidítései).
+
+A \textsc{tls} beállításhoz szükség van tanúsítványokra (ezek kezelését később tárgyaljuk). A~beállítások a~következők:
+
+\begin{VerbExample}
+TLSCACertificateFile /etc/openldap/ssl/cacert.pem
+TLSCertificateFile /etc/openldap/ssl/ldaps.panthernet.crt
+TLSCertificateKeyFile /etc/openldap/ssl/ldaps.panthernet.key
+#TLSCipherSuite HIGH,MEDIUM
+\end{VerbExample}  
+
+Az első sor jelzi a tanúsítvány-kiszolgáló (CA) tanúsítványát (certificate). A második az OpenLDAP-ét, a harmadik pedig
+az OpenLDAP titkos kulcsa (key). Ennek a fájlnak kötelezően 600 jogúnak kell lennie, nem szabad, hogy bárki is olvasni
+tudja. Az utolsó sor csak a~közepes és erős titkosító algoritmusokat engedélyezi (ha nincs ott a kettős kereszt (\#)).
+
+
+%\section{Replikáció}
+
+%TODO
+
+
+
+\section{Kerberos alapú hitelesítés}
+
+A Kerberos előnye, hogy egyszer kell a felhasználót hitelesíteni, utána hozzáférhet más szolgáltatásokhoz, anélkül, hogy
+megadná újból és újból a jelszavát. Részletesen lásd \aref{cha:Kerberos}. fejezetben. Az \textsc{ldap} szerverhez történő
+hozzáférés is szabályozható a következőkben (valamint egy további opció is szerepel a példában):
+
+\begin{VerbExample}
+sasl-realm panthernet
+sasl-regexp uid=([^,]+),.*cn=GSSAPI,.* uid=$1,ou=People,dc=panthernet
+sasl-host zeratul.panthernet
+\end{VerbExample}
+
+A \texttt{sasl-realm} azt az ún. kerberos realm-ot határozza meg, amiben a kerberos bejegyzések vannak. A
+\texttt{sasl-host} a kiszolgáló helyét mondja meg, \texttt{sasl-regexp} pedig azt, hogy hogyan lehet megtalálni azt a
+bejegyzést, aki csatlakozott a szerverhez.
+
+% Local Variables:
+% fill-column: 120
+% TeX-master: t
+% End:
