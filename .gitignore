@@ -1,0 +1,17 @@
+.DS_Store
+*~
+*.pdf
+*.bb*
+*.log
+*.toc
+*.aux
+*.dvi
+*.bl*
+*.nav
+*.snm
+*.out
+\#*
+*.sw?
+/date.tex
+/html/*tex
+/html/main/
